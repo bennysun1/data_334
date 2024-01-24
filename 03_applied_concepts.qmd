@@ -4,6 +4,8 @@ format: html
 editor: visual
 ---
 
+## 1/23/24
+
 ## 3.1: Class Prep 4
 
 Read Sections 1.3 - 1.7 of Kearen Healy's Data Visualization: A Practical Introduction, found here. As you read, answer the following questions in just 1 to 2 sentences.
@@ -40,3 +42,215 @@ Summary: What are two takeaways from Sections 1.3-1.7?
 What is one question that you have about the reading?
 
 -   Is there ever an appropriate time to make the base line of a y axis non zero?
+
+## 1/24/24
+
+## 3.2
+
+Example 1:
+
+```{r}
+library(tidyverse)
+library(palmerpenguins)
+theme_set(theme_minimal())
+
+penguins_sum <- penguins |> group_by(species, year) |>
+  summarise(n_penguins = n()) |>
+  mutate(year = factor(year))
+
+ggplot(data = penguins_sum, aes(x = year, fill = species)) +
+  geom_col(aes(y = n_penguins)) +
+  theme_minimal() +
+  scale_fill_viridis_d()
+
+ggplot(data = penguins_sum, aes(x = year, y = n_penguins,
+                                colour = species, group = species)) +
+  geom_line() +
+  theme_minimal() +
+  scale_colour_viridis_d()
+```
+
+-   Line plot is overall preferable because it's hard to see trends in the species of penguins that are not the Getoo species (which is the baseline)
+
+Example 2:
+
+```{r}
+ggplot(data = penguins, aes(x = species)) +
+  geom_bar(fill = "darkslategray4") +
+  theme_minimal()
+
+ggplot(data = penguins, aes(x = species)) +
+  geom_bar(fill = "darkslategray4") +
+  coord_cartesian(ylim = c(50, 160)) +
+  theme_minimal()
+```
+
+-   The first is preferable because, if our visualization encodes area or length, the y-axis should start at 0.
+
+Example 3:
+
+```{r}
+library(ggbeeswarm)
+ggplot(data = penguins, aes(x = species, y = body_mass_g)) +
+  geom_beeswarm(alpha = 0.7) +
+  theme_minimal()
+
+
+ggplot(data = penguins, aes(x = species, y = body_mass_g)) +
+  geom_beeswarm(alpha = 0.7) +
+  theme_minimal() +
+  ylim(c(0, 6500))
+```
+
+-   The first is preferable because including 0 as a y limit for this type of graph goves a lot of wasted space.
+
+Example 4: Pair 1
+
+```{r}
+ggplot(data = penguins, aes(x = bill_length_mm, y = bill_depth_mm)) +
+  geom_point(aes(colour = species)) +
+  scale_colour_viridis_d() +
+  theme_minimal()
+
+
+ggplot(data = penguins, aes(x = bill_length_mm, y = bill_depth_mm)) +
+  geom_point() +
+  facet_wrap( ~ species) +
+  theme_minimal() 
+```
+
+-   The first is preferable because it better utilizes the potisiton of points so we can easily see which species has high vs. low bill depths, etc.
+
+Example 4 Pair 2:
+
+```{r}
+penguins <- penguins |> mutate(species_island_sex = interaction(species, 
+                                                                island,
+                                                                sex))
+ggplot(data = penguins |>
+         filter(!is.na(sex)), aes(x = bill_length_mm, y = bill_depth_mm)) +
+  geom_point(aes(colour = species_island_sex)) +
+  scale_colour_viridis_d() +
+  theme_minimal()
+
+
+ggplot(data = penguins |> filter(!is.na(sex)), 
+                                 aes(x = bill_length_mm, y = bill_depth_mm)) +
+  geom_point() +
+  facet_wrap(~ species_island_sex) +
+  theme_minimal()
+```
+
+-   The second is preferable because its hard fro humans to accuratley perceive 10 different color shades.
+
+```{r}
+# Make this better!!!
+penguins <- 
+  penguins |> 
+  mutate(species_island_sex = interaction(species, island, sex))
+
+ggplot(data = penguins |>
+         filter(!is.na(sex)), 
+       aes(x = bill_length_mm,
+           y = bill_depth_mm)) +
+  geom_point(aes(colour = sex)) +
+  scale_colour_viridis_d() +
+  facet_wrap(vars(island, species)) +
+  theme_minimal()
+
+
+ggplot(data = penguins |> 
+         filter(!is.na(sex)),
+       aes(x = bill_length_mm,
+           y = bill_depth_mm)) +
+  geom_point(aes(color = sex,
+                 shape = species)) +
+  facet_wrap(~ island) +
+  theme_minimal()
+```
+
+Example 5: Pair 1
+
+```{r}
+ggplot(data = penguins, aes(x = island)) +
+  geom_bar(fill = "darkslategray4") +
+  theme_minimal()
+
+
+penguins_island <- penguins |> count(island)
+ggplot(penguins_island, aes(x = "", y = n, fill = island)) +
+  geom_bar(stat = "identity", width = 1, colour = "white") +
+  coord_polar("y", start = 0) +
+  theme_void() +
+  scale_fill_viridis_d()
+```
+
+-   The bar plot is stronger because it effectively uses potision of the bars while the areas of the pies chart are harder to accurately interpret
+
+Example 5: Pair 2
+
+```{r}
+# hpi_df <- read_csv(here("data/hpi-tidy.csv"))
+# hpi_extreme <- hpi_df |>
+#   arrange(desc(HappyPlanetIndex)) |>
+#   slice(1:10, (nrow(hpi_df) - 9):nrow(hpi_df)) |>
+#   mutate(Country = fct_reorder(Country, HappyPlanetIndex))
+# 
+# ggplot(data = hpi_extreme, aes(x = Country, y = HappyPlanetIndex,
+#                                fill = Region)) +
+#   geom_col() +
+#   scale_fill_viridis_d() +
+#   coord_flip() +
+#   theme_minimal()
+# 
+# 
+# ggplot(data = hpi_extreme, aes(x = Country, y = HappyPlanetIndex,
+#                                colour = Region)) +
+#   geom_point() +
+#   geom_segment(aes(xend = Country, y = 0, yend = HappyPlanetIndex)) +
+#   scale_colour_viridis_d() +
+#   coord_flip() +
+#   theme_minimal()
+```
+
+-   Easier to distinguish the region (colors) in plot 1 because the bars are thicker, but the second has a better data to ink ratio...
+
+Example 7:
+
+```{r}
+ggplot(data = penguins, aes(x = bill_length_mm, y = bill_depth_mm)) +
+  geom_point(aes(colour = species)) +
+  theme_minimal() +
+  scale_colour_brewer(type = "seq")
+
+ggplot(data = penguins, aes(x = bill_length_mm, y = bill_depth_mm)) +
+  geom_point(aes(colour = species)) +
+  theme_minimal() +
+  scale_colour_brewer(type = "div")
+
+ggplot(data = penguins, aes(x = bill_length_mm, y = bill_depth_mm)) +
+  geom_point(aes(colour = species)) +
+  theme_minimal() +
+  scale_colour_brewer(type = "qual")
+```
+
+-   An un-ordered color scale would be ideal (last option), because we do not need a sequential and the color should not be diverging, because there is not 'neutral' option.
+
+## 3.3
+
+Exercise 1:
+
+a.  Sequential (number of cases clearly ordered: more cases would be a more "pop" color)
+b.  Diverging (0 change would be given a neutral color)
+c.  Qualitative
+d.  Diverging (0 chnage would be a neutral color)
+
+Exercise 2: Read the examples section of the Help file for ?scale_colour_viridis_d and examine the difference between scale_colour_viridis_d(), ?scale_colour_viridis_c(), and scale_colour_viridis_b(). Explain what the difference is between the three functions:
+
+-   scale_colour_viridis_d(): "d" stands for discrete (penguin species)
+
+-   scale_colour_viridis_c(): "c" stands for continuous (penguin body mass)
+
+-   scale_colour_viridis_b(): "b" stands for "binned" (bins the body mass into groups)
+
+
