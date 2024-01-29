@@ -39,7 +39,7 @@ hpi_us <- hpi_df |> filter(Country == "United States of America")
 Exercise 1:
 
 1.  mutate(): Allows you to modify variables or create new ones.
-2.  arrange(): Allows you to arrange a data set by a based off a column or many.
+2.  arrange(): Allows you to arrange a data set by a column or many.
 3.  select(): Allows you to select certain columns from a data set.
 4.  slice(): Allows you to select specific rows from a data set.
 5.  filter(): Given a specified condition, filter() allows you to filter rows in a data set that meet a condition.
