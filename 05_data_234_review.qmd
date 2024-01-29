@@ -90,7 +90,7 @@ hpi_df %>%
   slice(1:5)
 ```
 
-# Exercise 7:
+Exercise 7:
 
 ```{r}
 # Review filter(). Make a data frame from hpi_df that only has countries in the "Western World" Region.
@@ -98,7 +98,7 @@ hpi_df %>%
   filter(Region == 'Western World')
 ```
 
-# Exercise 8:
+Exercise 8:
 
 ```{r}
 # Review filter(). Make a data frame from hpi_df that only has countries with a LifeExp less than 55.
@@ -106,7 +106,7 @@ hpi_df %>%
   filter(LifeExpectancy < 55)
 ```
 
-# Exercise 9:
+Exercise 9:
 
 ```{r}
 # Review group_by() and summarise(). Make a table of the number of countries in each Region. (Hint: recall that the n() function is the counting function in dplyr).
@@ -115,7 +115,7 @@ hpi_df %>%
   summarise(count = n())
 ```
 
-# Exercise 10:
+Exercise 10:
 
 ```{r}
 # Review group_by() and summarise(). Make a table with the maximum LifeExp in each Region.
