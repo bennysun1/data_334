@@ -1,0 +1,126 @@
+---
+title: "05 DATA/STAT 234 Review"
+author: "Ben Sunshine"
+format: 
+  html:
+    embed-resources: true
+---
+
+## 1/28/24
+
+```{r}
+library(tidyverse)
+library(here)
+library(ggrepel)
+theme_set(theme_minimal())
+hpi_df <- read_csv(here("data/hpi-tidy.csv"))
+
+```
+
+## 5.1
+
+```{r}
+hpi_us <- hpi_df |> filter(Country == "United States of America")
+
+## install.packages("ggrepel")
+# ggplot(data = hpi_df, aes(x = Footprint, y = Wellbeing)) +
+#   geom_point() +
+#   geom_text_repel(data = hpi_us, aes(label = Country)) +
+#   geom_point(data = hpi_us, size = 3, shape = 1) +
+#   labs(title = "Countries with a Higher Ecological Footprint Tend to Have Citizens with Higher Wellbeing", ## add title
+#     subtitle = "Wellbeing is on a 1-10 scale", ## add subtitle (smaller text size than the title)
+#     caption = "Data Source: http://happyplanetindex.org/countries", ## add caption to the bottom of the figure
+#     x = "Ecological Footprint", ## change x axis label
+#     y = "Wellbeing") ## change y axis label
+```
+
+## 5.1 Exercises
+
+Exercise 1:
+
+1.  mutate(): Allows you to modify variables or create new ones.
+2.  arrange(): Allows you to arrange a data set by a based off a column or many.
+3.  select(): Allows you to select certain columns from a data set.
+4.  slice(): Allows you to select specific rows from a data set.
+5.  filter(): Given a specified condition, filter() allows you to filter rows in a data set that meet a condition.
+6.  group_by(): Allows you to group the data by one or many variables for, typically for use in analyzing groups.
+7.  summarise(); Given statistics that the user specifies for a each group in a data frame.
+
+Exercise 2:
+
+```{r}
+# Review mutate(). Create a new variable in hpi_df that is equal to Wellbeing / Footprint.
+hpi_df %>%
+  mutate(wellbeing_to_footprint_ratio = Wellbeing/Footprint)
+```
+
+Exercise 3:
+
+```{r}
+#  Review mutate() and case_when(). Create a new variable in hpi_df that is equal to "80s" if LifeExp is in the 80’s, "70s" if LifeExp is in the 70s, and "Below 70" if LifeExp is less than 70.
+hpi_df %>%
+  mutate(LifeExpectancy_groups = case_when(
+    (LifeExpectancy >= 80) & (LifeExpectancy < 90) ~ "80s",
+    (LifeExpectancy >= 70) & (LifeExpectancy < 80) ~ "70s",
+    (LifeExpectancy < 70) ~ "Below 70"
+  ))
+```
+
+Exercise 4:
+
+```{r}
+# Exercise 4. Review arrange(). Sort the hpi_df data so that the country with the highest LifeExp is in the first row and the country with the lowest LifeExp is in the last row.
+hpi_df %>%
+  arrange(desc(LifeExpectancy))
+```
+
+Exercise 5:
+
+```{r}
+# Review select(). Make a data frame from hpi_df that only has the variables Country and LifeExp.
+hpi_df %>%
+  select(Country, LifeExpectancy)
+```
+
+Exercise 6:
+
+```{r}
+# Review slice(). Make a data frame from hpi_df that only has the first 5 rows.
+hpi_df %>%
+  slice(1:5)
+```
+
+# Exercise 7:
+
+```{r}
+# Review filter(). Make a data frame from hpi_df that only has countries in the "Western World" Region.
+hpi_df %>%
+  filter(Region == 'Western World')
+```
+
+# Exercise 8:
+
+```{r}
+# Review filter(). Make a data frame from hpi_df that only has countries with a LifeExp less than 55.
+hpi_df %>%
+  filter(LifeExpectancy < 55)
+```
+
+# Exercise 9:
+
+```{r}
+# Review group_by() and summarise(). Make a table of the number of countries in each Region. (Hint: recall that the n() function is the counting function in dplyr).
+hpi_df %>%
+  group_by(Region) %>%
+  summarise(count = n())
+```
+
+# Exercise 10:
+
+```{r}
+# Review group_by() and summarise(). Make a table with the maximum LifeExp in each Region.
+hpi_df %>%
+  group_by(Region) %>%
+  summarise(max_life_expectancy = max(LifeExpectancy))
+```
+
