@@ -253,7 +253,6 @@ Exercise 2: Read the examples section of the Help file for ?scale_colour_viridis
 
 -   scale_colour_viridis_b(): "b" stands for "binned" (bins the body mass into groups)
 
-
 Exercise UGLY!!!:
 
 ```{r}
@@ -279,4 +278,3 @@ ggplot(data = hpi_df, aes(x = Footprint, y = Wellbeing, colour = Region)) +
         plot.background = element_rect(fill = "yellow"),
         panel.grid = element_blank()) 
 ```
-
