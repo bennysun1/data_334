@@ -18,12 +18,11 @@ diamonds %>%
   count(cut) %>%
   left_join(diamonds, by = c("cut" = "cut"))
 
+
 ggplot(diamonds, aes(x = price)) +
-  geom_bar(stat = "bin", color = "blue", 
-                 fill = "lightblue", bins = 15) +
-  facet_wrap(~cut) +
-  #ylim(c(0,7500)) +
-  theme_minimal()
+    geom_histogram(color = "blue", fill = "lightblue") +
+    facet_wrap(~cut) +
+    theme_minimal()
 ```
 
 
@@ -31,8 +30,8 @@ Question 2:
 ```{r}
 ggplot(diamonds, 
        aes(x = price)) +
-  geom_bar(stat = "bin", color = "blue", 
-                 fill = "lightblue", bins = 15) +
+  geom_histogram(color = "blue", 
+                 fill = "lightblue") +
   facet_wrap(~cut) +
   theme(plot.background = element_rect(fill = "tomato"),
         axis.line = element_line(arrow = arrow()))
