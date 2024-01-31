@@ -124,3 +124,69 @@ hpi_df %>%
   summarise(max_life_expectancy = max(LifeExpectancy))
 ```
 
+
+## 1/29/24
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(here)
+df <- read_excel(here::here("data/slu_graduates_17_23.xlsx"))
+
+## fixes error in the data
+df <- df |> mutate(across(everything(),
+                          .fns = ~replace(., . ==  "STATS" , "STAT")))
+```
+
+```{r}
+summary_m_df <-
+  df %>%
+  # remove columns starting w/minor
+  select(-starts_with("minor")) %>%
+  pivot_longer(cols = starts_with("major"),
+               names_to = "major_num", 
+               values_drop_na = T,
+               values_to = "major") %>%
+  # Higham way:
+  group_by(major, sex) %>%
+  summarise(n_majors = n()) %>%
+  ungroup() %>%
+  
+  # My way:
+  # group_by(major) %>%
+  # summarise(prop_male = mean(sex == "M"))
+  
+  pivot_wider(names_from = sex,
+              values_from = "n_majors") %>%
+  mutate(prop_male = M / (`F` + M)) %>%
+  filter(M + `F` >= 70) %>%
+  mutate(major = fct_reorder(major, prop_male), .desc = F#,
+         #math_stat_cs = ifelse((major == "MATH" | major == "STAT" | major == "CS"), "blue", "black")
+         # color_ind = case_when(prop_male < 0.50 ~ "pink", 
+         #                       prop_male > 0.50 ~ "lightblue",
+         #                       prop_male == 0.50 ~ "black")
+         )
+
+mcss_df <-
+  summary_m_df %>%
+  filter(major %in% c("STAT", "MATH", "CS"))
+
+  
+  
+ggplot(data = summary_m_df, aes(x = major, y = prop_male)) +
+  geom_segment(aes(xend = major, y = 0, yend = prop_male)) +
+  geom_point() +
+  geom_segment(data = mcss_df, aes(xend = major, y = 0, yend = prop_male), colour = "hotpink1", linewidth = 2) +
+  geom_point(data = mcss_df, colour = "hotpink4", size = 2) +
+  coord_flip() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(size = 15)) +
+  labs(caption = "Data Source: SLU Institutional Research Office")
+
+
+
+  
+  # df %>%
+  #   filter((major1 == "CN_EC" | major2 == "CN_EC" | major3 == "CN_EC") & sex == "M")
+```
+

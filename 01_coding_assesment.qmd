@@ -1,0 +1,41 @@
+---
+title: "01 Coding Assesment"
+author: "Ben Sunshine"
+format: 
+  html:
+    embed-resources: true
+---
+
+```{r}
+library(tidyverse)
+diamonds
+```
+
+Question 1:
+```{r}
+diamonds_sum <-
+diamonds %>%
+  count(cut) %>%
+  left_join(diamonds, by = c("cut" = "cut"))
+
+ggplot(diamonds, 
+       aes(x = price)) +
+  geom_bar(stat = "count", color = "blue", 
+                 fill = "lightblue",
+                 bins = 10) +
+  facet_wrap(~cut) +
+  #ylim(c(0,7500)) +
+  theme_minimal()
+```
+
+
+Question 2:
+```{r}
+ggplot(diamonds, 
+       aes(x = price)) +
+  geom_histogram(stat = "count", color = "blue", fill = "lightblue") +
+  facet_wrap(~cut) +
+  theme(plot.background = element_rect(fill = "tomato"),
+        axis.line = element_line(arrow = arrow()))
+```
+

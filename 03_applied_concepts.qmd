@@ -254,3 +254,29 @@ Exercise 2: Read the examples section of the Help file for ?scale_colour_viridis
 -   scale_colour_viridis_b(): "b" stands for "binned" (bins the body mass into groups)
 
 
+Exercise UGLY!!!:
+
+```{r}
+hpi_df <- read_csv(here("data/hpi-tidy.csv"))
+hpi_extreme <- hpi_df |>
+  arrange(desc(HappyPlanetIndex)) |>
+  slice(1:10, (nrow(hpi_df) - 9):nrow(hpi_df)) |>
+  mutate(Country = fct_reorder(Country, HappyPlanetIndex))
+
+
+ggplot(data = hpi_df, aes(x = Footprint, y = Wellbeing, colour = Region)) +
+  geom_point() +
+  theme(axis.text = element_text(size = 7,
+                                   family = "courier",
+                                   color = "green",
+                                   angle = 120, 
+                                   vjust = 1, 
+                                   hjust = 1),
+        axis.line = element_line(arrow = arrow()),
+        # axis.text.y = element_text(angle = 3, 
+        #                            vjust = 3, 
+        #                            hjust = 2),
+        plot.background = element_rect(fill = "yellow"),
+        panel.grid = element_blank()) 
+```
+

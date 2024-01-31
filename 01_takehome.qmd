@@ -1,0 +1,37 @@
+---
+title: "01 Take Home Quiz"
+author: "Ben Sunshine"
+format: 
+  html:
+    embed-resources: true
+---
+
+Question 1:
+
+-   Group 5 is the easiest to see the overall trend in the count through time, because it is the category that is closest to the x axis baseline at 0.
+
+Question 2:
+
+a.  A diverging color scale should be used for the States, because we are looking at percent change in Covid cases. If there a 0% change, we would want to use a neutral color in the color scale which occurs in the middle of a diverging color scale. Also, as we get further and further (in either the positive or negative direction we would to use colors which make it obvious whether there is a positive or negative percent change in Covid cases.
+
+b.  A sequential color scale should be used, because we are examining the number of Covid cases per 100,000 people, we would want a low number of cases to be a lighter color and the higher number of cases to be a darker color. This can be achieved with a sequential color scale that allow the viewer to discern "low" from "high" values.
+
+Question 3:
+
+a.  A histogram would be the most appropriate graph for examining each student's assessment grade.
+
+b.  The graph selected above would tell you the spread, shape, and (somewhat easily) the sample size.
+
+Question 4:
+
+a.  Pair 1 a different geom function. In the first plot a strip plot is used, while the second uses side-by-side box plots.
+
+b.  Pair 2 uses different coordinate functions. Assuming both plots use "position" as the x aesthetic and "HR" for the y aesthetic, plot 1 uses a standard Cartesian coordinate system, while plot 2 uses a coord_flip() which flips the x and y axis.
+
+c.  Pair 3 uses different positions between the two plots. In the first plot the standard the points are first plotted in a vertical line (like a strip plot), then a box plot is plotted on top. In the second plot, the geom_point() uses a "jitter" position to spread out the points on the plot. The second plot also shifts the position of the box plot to the left.
+
+Question 5:
+
+a. Plot 1 is a better graph, because it uses 0 as a baseline. Plot 2 begins at 40 instead, which makes the differences in number of players by each position seem larger than they really are.
+
+b. Plot 1 is better, because it facets the graphs by the players' position so it is not over crowded with lines like plot 2. The only disadvantage of plot 1 is that is hard to identify the number of home runs for smaller values, because the y axis is shrunk to fit in the space. 
