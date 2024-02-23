@@ -1,0 +1,123 @@
+---
+title: "Take-Home Assesment 2"
+author: "Ben Sunshine"
+format: 
+  html:
+    embed-resources: true
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(here)
+df <- read_excel(here::here("data/slu_graduates_17_23.xlsx"))
+
+## fixes error in the data
+df <- df |> mutate(across(everything(),
+                          .fns = ~replace(., . ==  "STATS" , "STAT")))
+```
+
+
+Question 1 (4 points). Make a plot that shows the “other” majors of each STAT major student in the data set, along with the count of each major. This plot should show the most popular majors that statistics majors tend to double or triple major in. Hint: You will need dplyr and forcats: you may want to examine old DATA/STAT 234 materials for a refresher.
+
+Hint 1. In class, recall that we pivoted the data set so that there was one column for majors and minors and we then subsequently filtered out any row that was minor1, minor2, or minor3 in order to create the plot of gender balance in majors. We should do the same here to get started.
+
+Hint 2. Next, we should create a new data frame from the data frame created in Hint 1 that has only STAT disciplines. We can then semi_join() the pivoted data frame from Hint 1 with the STAT only data frame by adm_id. Doing so gives us a new data frame with only students who are STAT majors but also contains any other majors for those students.
+
+```{r}
+multiple_majors <-
+  df %>%
+  filter(major1 == "STAT" | major2 == "STAT" | major3 == "STAT") %>%
+  pivot_longer(cols = starts_with("major"),
+               names_to = "major_num", 
+               values_drop_na = T,
+               values_to = "major") %>%
+  filter(major != "STAT") %>%
+  group_by(major) %>%
+  summarise(count = n()) %>%
+  ungroup()
+
+# #sanity check
+# df %>%
+#   filter(major1 == "STAT" | major2 == "STAT" | major3 == "STAT") %>%
+#   filter(major1 == "ECON" | major2 == "ECON" | major3 == "ECON")
+  
+
+multiple_majors %>%
+  mutate(major = fct_reorder(major, count, .desc = F)) %>%
+  ggplot(aes(x = major, count)) +
+  geom_col(color = "black", fill = "springgreen") +
+  labs(x = "Major",
+       y = "Count") +
+  theme_minimal() +
+  coord_flip()
+```
+
+
+Question 2 (3 points). In class, we used a majors data set to create a plot of the proportion of female students within each major at SLU. Modify this plot so that there are error bars instead of bars or lollipops so that variability in the estimates of our proportions is shown.
+
+```{r}
+graduates <- read_excel(here::here("data/slu_graduates_17_23.xlsx"))
+
+gender_prop <-
+  graduates %>%
+  pivot_longer(cols = starts_with("major"),
+               names_to = "major_num", 
+               values_drop_na = T,
+               values_to = "major") %>%
+  group_by(major, sex) %>%
+  summarise(count = n()) %>%
+  ungroup() %>%
+  pivot_wider(names_from = sex,
+              values_from = "count") %>%
+  mutate(`F` = ifelse(is.na(`F`), 0, `F`),
+         `M` = ifelse(is.na(`M`), 0, `M`),
+         female_prop = `F`/(`F`+`M`)) %>%
+  filter(M + `F` >= 70) %>%
+  mutate(n = `F` + `M`) %>%
+  mutate(samp_prop = `F` / n,
+         se = sqrt(samp_prop * (1-samp_prop)/(`F`+`M`)),
+         lb_se = female_prop - se,
+         ub_se = female_prop + se)
+
+
+gender_prop %>%
+  ggplot(aes(x = major, y = female_prop)) +
+  geom_errorbar(aes(ymin = lb_se, ymax = ub_se, colour = "#E42B1C")) +
+  geom_point(aes(x = major, y = female_prop)) +
+  theme_minimal() +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 6))
+
+```
+
+
+
+Question 3: Examine the alcohol.csv data set that you may have used as an introductory data set in DATA/STAT 234: Construct a map of the beer_servings variable. You should choose an appropriate projection and change the default colour scheme of your map.
+
+```{r}
+library(tidyverse)
+library(here)
+alcohol_df <- read_csv(here("data/alcohol.csv")) %>%
+  mutate(country = ifelse(country == "Russian Federation", "Russia", country),
+         country = ifelse(country == "DR Congo", "Democratic Republic of the Congo", country),
+         country = ifelse(country == "Cote d'Ivoire", "Ivory Coast", country)
+         )
+
+# table(ggplot2::map_data("world")$region)
+# table(alcohol_df$country)
+```
+
+```{r}
+joined_alcohol_df <- left_join(alcohol_df, ggplot2::map_data("world"), by = c("country" = "region"))
+
+joined_alcohol_df %>%
+  ggplot(aes(x = long, 
+             y = lat,
+             group = group)) +
+  geom_polygon( aes(fill = beer_servings)) +
+  coord_map(projection = "mercator", xlim=c(-180,180)) +
+  theme_void() +
+  scale_fill_viridis_c(option = "plasma")
+```
+

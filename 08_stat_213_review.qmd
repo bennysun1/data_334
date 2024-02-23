@@ -1,0 +1,215 @@
+---
+title: "08 STAT 213 Review"
+author: "Ben Sunshine"
+format: 
+  html:
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+---
+
+## 2/11/24
+
+## 8.1
+
+```{r}
+library(tidyverse)
+library(broom)
+library(here)
+theme_set(theme_minimal())
+```
+
+```{r}
+coffee_df <- read_csv(here("data/coffee_ratings.csv"))
+coffee_mod <- lm(total_cup_points ~ species + aroma + flavor +
+                   sweetness + moisture,
+   data = coffee_df)
+
+summary(coffee_mod)
+#> 
+#> Call:
+#> lm(formula = total_cup_points ~ species + aroma + flavor + sweetness + 
+#>     moisture, data = coffee_df)
+#> 
+#> Residuals:
+#>     Min      1Q  Median      3Q     Max 
+#> -9.5132 -0.3705  0.0726  0.5610  5.5844 
+#> 
+#> Coefficients:
+#>                Estimate Std. Error t value Pr(>|t|)    
+#> (Intercept)     7.04039    0.77377   9.099  < 2e-16 ***
+#> speciesRobusta  2.85365    0.26861  10.624  < 2e-16 ***
+#> aroma           1.95188    0.14575  13.392  < 2e-16 ***
+#> flavor          5.09440    0.14042  36.281  < 2e-16 ***
+#> sweetness       2.23956    0.06553  34.173  < 2e-16 ***
+#> moisture       -1.88033    0.67368  -2.791  0.00533 ** 
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> 
+#> Residual standard error: 1.168 on 1333 degrees of freedom
+#> Multiple R-squared:  0.8891, Adjusted R-squared:  0.8887 
+#> F-statistic:  2137 on 5 and 1333 DF,  p-value: < 2.2e-16
+```
+
+```{r}
+summary(coffee_mod)$coefficients["moisture", 4]
+#> [1] 0.005327594
+```
+
+```{r}
+tidy(coffee_mod)
+#> # A tibble: 6 × 5
+#>   term           estimate std.error statistic   p.value
+#>   <chr>             <dbl>     <dbl>     <dbl>     <dbl>
+#> 1 (Intercept)        7.04    0.774       9.10 3.23e- 19
+#> 2 speciesRobusta     2.85    0.269      10.6  2.31e- 25
+#> 3 aroma              1.95    0.146      13.4  1.82e- 38
+#> 4 flavor             5.09    0.140      36.3  4.73e-201
+#> 5 sweetness          2.24    0.0655     34.2  2.41e-184
+#> 6 moisture          -1.88    0.674      -2.79 5.33e-  3
+
+
+tidy(coffee_mod) |> select(p.value)
+#> # A tibble: 6 × 1
+#>     p.value
+#>       <dbl>
+#> 1 3.23e- 19
+#> 2 2.31e- 25
+#> 3 1.82e- 38
+#> 4 4.73e-201
+#> 5 2.41e-184
+#> 6 5.33e-  3
+
+tidy(coffee_mod) |> filter(term == "aroma")
+#> # A tibble: 1 × 5
+#>   term  estimate std.error statistic  p.value
+#>   <chr>    <dbl>     <dbl>     <dbl>    <dbl>
+#> 1 aroma     1.95     0.146      13.4 1.82e-38
+```
+
+```{r}
+glance(coffee_mod)
+#> # A tibble: 1 × 12
+#>   r.squared adj.r.squared sigma statistic p.value    df logLik   AIC   BIC
+#>       <dbl>         <dbl> <dbl>     <dbl>   <dbl> <dbl>  <dbl> <dbl> <dbl>
+#> 1     0.889         0.889  1.17     2137.       0     5 -2105. 4224. 4260.
+#> # ℹ 3 more variables: deviance <dbl>, df.residual <int>, nobs <int>
+```
+
+```{r}
+augment(coffee_mod)
+#> # A tibble: 1,339 × 12
+#>   total_cup_points species aroma flavor sweetness moisture .fitted  .resid
+#>              <dbl> <chr>   <dbl>  <dbl>     <dbl>    <dbl>   <dbl>   <dbl>
+#> 1             90.6 Arabica  8.67   8.83        10     0.12    91.1 -0.537 
+#> 2             89.9 Arabica  8.75   8.67        10     0.12    90.5 -0.538 
+#> 3             89.8 Arabica  8.42   8.5         10     0       89.2  0.577 
+#> 4             89   Arabica  8.17   8.58        10     0.11    88.9  0.114 
+#> 5             88.8 Arabica  8.25   8.5         10     0.12    88.6  0.214 
+#> 6             88.8 Arabica  8.58   8.42        10     0.11    88.9 -0.0411
+#> # ℹ 1,333 more rows
+#> # ℹ 4 more variables: .hat <dbl>, .sigma <dbl>, .cooksd <dbl>,
+#> #   .std.resid <dbl>
+
+augment_df <- augment(coffee_mod)
+augment_df |> filter(.cooksd > 1)
+#> # A tibble: 1 × 12
+#>   total_cup_points species aroma flavor sweetness moisture .fitted .resid
+#>              <dbl> <chr>   <dbl>  <dbl>     <dbl>    <dbl>   <dbl>  <dbl>
+#> 1                0 Arabica     0      0         0     0.12    6.81  -6.81
+#> # ℹ 4 more variables: .hat <dbl>, .sigma <dbl>, .cooksd <dbl>,
+#> #   .std.resid <dbl>
+```
+
+```{r}
+ggplot(data = coffee_df, aes(x = total_cup_points)) +
+  geom_histogram(bins = 15, fill = "white", colour = "black")
+```
+
+
+```{r}
+augment_df |> filter(.hat > 0.2)
+#> # A tibble: 2 × 12
+#>   total_cup_points species aroma flavor sweetness moisture .fitted .resid
+#>              <dbl> <chr>   <dbl>  <dbl>     <dbl>    <dbl>   <dbl>  <dbl>
+#> 1             59.8 Arabica   7.5   6.67      1.33     0.1    58.4    1.38
+#> 2              0   Arabica   0     0         0        0.12    6.81  -6.81
+#> # ℹ 4 more variables: .hat <dbl>, .sigma <dbl>, .cooksd <dbl>,
+#> #   .std.resid <dbl>
+
+augment_df |> filter(.std.resid > 3 | .std.resid < -3)
+#> # A tibble: 25 × 12
+#>   total_cup_points species aroma flavor sweetness moisture .fitted .resid
+#>              <dbl> <chr>   <dbl>  <dbl>     <dbl>    <dbl>   <dbl>  <dbl>
+#> 1             82.8 Arabica  8.08   8.17     10        0.12    86.6  -3.85
+#> 2             82.4 Arabica  5.08   7.75     10        0.11    78.6   3.79
+#> 3             82.3 Arabica  7.75   8.08      6.67     0.11    78.1   4.27
+#> 4             80.7 Arabica  7.67   7.5       6.67     0       75.2   5.51
+#> 5             80   Arabica  7.58   7.75     10        0       83.7  -3.71
+#> 6             79.9 Arabica  7.83   7.67     10        0       83.8  -3.87
+#> # ℹ 19 more rows
+#> # ℹ 4 more variables: .hat <dbl>, .sigma <dbl>, .cooksd <dbl>,
+#> #   .std.resid <dbl>
+
+ggplot(data = augment_df |> filter(.fitted > 25),
+       aes(x = .fitted, y = .resid)) +
+  geom_point() 
+```
+
+```{r}
+library(palmerpenguins)
+penguins
+#> # A tibble: 344 × 8
+#>   species island   bill_length_mm bill_depth_mm flipper_length_mm body_mass_g
+#>   <fct>   <fct>             <dbl>         <dbl>             <int>       <int>
+#> 1 Adelie  Torgers…           39.1          18.7               181        3750
+#> 2 Adelie  Torgers…           39.5          17.4               186        3800
+#> 3 Adelie  Torgers…           40.3          18                 195        3250
+#> 4 Adelie  Torgers…           NA            NA                  NA          NA
+#> 5 Adelie  Torgers…           36.7          19.3               193        3450
+#> 6 Adelie  Torgers…           39.3          20.6               190        3650
+#> # ℹ 338 more rows
+#> # ℹ 2 more variables: sex <fct>, year <int>
+```
+
+
+Exercise 1. Examine the penguins data set in the palmerpenguins package: Fit a linear regression model with body_mass_g as the response variable and species and bill_length_mm as the predictors. Note that penguins with missing values for any of these three variables will be dropped from the analysis.
+
+```{r}
+penguin_mod <- lm(body_mass_g ~ species + bill_length_mm, data = penguins)
+```
+
+Exercise 2. Create a table of summary output, including coefficient estimates, standard errors, test statistics, and p-values, using one of the broom functions.
+
+```{r}
+broom::tidy(penguin_mod)
+```
+
+
+Exercise 3. Use glance() to glance at some of the relevant model statistics.
+
+```{r}
+glance(penguin_mod)
+```
+
+Exercise 4. Using augment(), create a plot of the residuals vs. the fitted values and evaluate the constant variance assumption.
+
+```{r}
+augment(penguin_mod) %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_point() 
+```
+
+-   There is no fanning or funneling of the residuals, but there are two groups which become visible, which indicate non constant variance.
+
+
+Exercise 5. Using augment(), check to see if there are any penguins that are influential. Use 0.75 as your cut-off value for Cook’s distance.
+
+```{r}
+augment(penguin_mod) %>%
+  filter(.cooksd >= 0.75)
+```
+
+-   There are no observations at or above the 0.75 threshold.
+
+

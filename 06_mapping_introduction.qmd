@@ -1,0 +1,308 @@
+---
+title: "06 Mapping Introduction"
+author: "Ben Sunshine"
+format: 
+  html:
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+---
+
+## 2/4/24
+
+## 6.1
+```{r}
+## install.packages("maps")
+library(maps)
+library(tidyverse)
+state_df <- ggplot2::map_data("state")
+```
+
+
+```{r}
+ggplot(data = state_df,
+            mapping = aes(x = long, y = lat,
+                          group = group)) +
+  geom_polygon()
+
+# better:
+ggplot(data = state_df,
+            mapping = aes(x = long, y = lat,
+                          group = group)) +
+  geom_polygon(colour = "black", fill = "white") +
+  coord_map(projection = "albers", lat0 = 39, lat1 = 45) +
+  theme_void()
+```
+
+
+```{r}
+library(usdata)
+state_stats
+
+state_stats <- state_stats |> mutate(state = str_to_lower(state))
+state_full <- left_join(state_df, state_stats, by = c("region" = "state"))
+
+ggplot(data = state_full, aes(x = long, y = lat, group = group)) +
+  geom_polygon(colour = "black", aes(fill = coal)) +
+  coord_map(projection = "albers", lat0 = 39, lat1 = 45) +
+  theme_void() +
+  scale_fill_viridis_b()
+```
+
+
+Exercise 1: The reading gave one example where the “best” graph to show woud not be a map. Think of a second example where, even though the data is spatial, the best graph to make a particular argument would not be a map.
+
+-   When examining unemployment rates by state over a time period, it would be better to layer geom_lines to show the trends over time of unemployment rates. Using just a map plot limits the amount of period information the viewer has. 
+
+Exercise 2: Refer back the United States examples that we completed. Choose a variable or two variables where a map makes the most sense to visualize that variable and explain your reasoning. Then, choose a variable or two variables where you might make a plot other than a map and explain your reasoning for why the map makes less sense for this variable.
+
+```{r}
+# map plot
+ggplot(data = state_full, aes(x = long, y = lat, group = group)) +
+  geom_polygon(colour = "black", aes(fill = nuclear)) +
+  coord_map(projection = "albers", lat0 = 39, lat1 = 45) +
+  theme_void() +
+  scale_fill_viridis_b()
+
+```
+
+-   Using a map layout makes sense for this plot, because it shows regional trends in nuclear power usage.
+
+
+
+
+```{r}
+state_full %>%
+  mutate(pop_change = pop2010 - pop2000) %>%
+  ggplot(aes(x = region, y = pop_change)) +
+  geom_segment(aes(x = region, xend = region, y = 0, yend = pop_change, color = pop_change)) +
+  geom_point(aes(color = pop_change), size = 2) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_color_viridis_c()
+
+```
+
+-   This plot makes more sense, because it shows the actual scale to which population changes due to the fact you can compare the lengths of each segment. 
+
+Exercise 3: Which states had the fastest growth rate between 2000 and 2010? Make a variable for the percent change in population and then map this variable.
+
+```{r}
+state_full %>%
+  mutate(pop_growth = (pop2010-pop2000)/pop2000) %>%
+  ggplot(aes(x = long, y = lat, group = group)) +
+  geom_polygon(colour = "black", aes(fill = pop_growth)) +
+  coord_map(projection = "albers", lat0 = 39, lat1 = 45) +
+  theme_void() +
+  scale_fill_viridis_b()
+```
+
+-   Nevada has the fastest growth rate from 2000 to 2010.
+
+Exercise 4: To your map in Exercise 3, think about which type of colour scale makes the most sense to use (sequential, diverging, or unordered). Change the colour scale to match what makes the most sense
+
+.
+```{r}
+state_full %>%
+  mutate(pop_growth = (pop2010-pop2000)/pop2000) %>%
+  ggplot(aes(x = long, y = lat, group = group)) +
+  geom_polygon(colour = "black", aes(fill = pop_growth)) +
+  coord_map(projection = "albers", lat0 = 39, lat1 = 45) +
+  theme_void() +
+  scale_fill_viridis_c()
+```
+
+
+
+## 2/5/24
+
+## 6.2
+
+```{r}
+active <- read_csv("https://raw.githubusercontent.com/iramler/stlawu_covid/main/slc_towns_active_cases.csv", n_max = 34)
+tcases <- read_csv("https://raw.githubusercontent.com/iramler/stlawu_covid/main/slc_towns_total_cases.csv", n_max = 34)
+
+active_long <- active |> pivot_longer(5:ncol(active), names_to = "date",
+                                       values_to = "cases")
+## repeat for total cases
+tcases_long <- tcases |> pivot_longer(5:ncol(tcases), names_to = "date",
+                                       values_to = "cases")
+
+library(lubridate)
+covid_df <- left_join(tcases_long, active_long,
+                      by = c("date", "Order", "NAME")) |>
+  mutate(date = mdy(date)) |>
+  rename(total_cases = cases.x,
+         active_cases = cases.y) |>
+  mutate(total_cases = if_else(is.na(total_cases),
+                               true = 0, false = total_cases),
+         active_cases = if_else(is.na(active_cases),
+                                      true = 0, false = active_cases))
+  
+
+covid_SLC <- covid_df |> filter(NAME == "St. Lawrence County")
+covid_sub <- covid_df |> filter(NAME != "St. Lawrence County")
+```
+
+Exercise 1. Make a line plot that shows the number of active_cases in all of St. Lawrence County over time.
+
+```{r}
+covid_SLC %>%
+  ggplot(aes(x = date,
+             y = active_cases)) +
+  geom_line() +
+  theme_minimal()
+```
+
+
+
+```{r}
+library(sf)
+shp <- read_sf("data/SLC_Civil_Boundaries_SHP/slc.shp") |>
+  st_transform(st_crs("+proj=longlat"))
+```
+
+
+```{r}
+ggplot(data = shp) +
+  geom_sf() +
+  theme_void()
+```
+
+
+```{r}
+full_df <- left_join(shp, covid_sub, by = "NAME") |>
+  filter(date == max(date)) ## only plot cases on the most recent date
+
+ggplot(data = full_df) +
+  geom_sf(aes(fill = active_cases)) +
+  theme_void()
+```
+
+
+Exercise 2. Change the fill scale of the plot. Should you use an unordered, sequential, or diverging scale?
+
+```{r}
+ggplot(data = full_df) +
+  geom_sf(aes(fill = active_cases)) +
+  scale_fill_viridis_c() +
+  theme_void()
+```
+
+
+Exercise 3. Change the colour scale so that active_cases are put into different bins with scale_fill_viridis_b(). What are some advantages and disadvantages of this?
+
+```{r}
+ggplot(data = full_df) +
+  geom_sf(aes(fill = active_cases)) +
+  scale_fill_viridis_b(option = "turbo") +
+  theme_void()
+```
+
+-   Many of the states are binned into having the same number of active cases when really each county has different cases. Some information is lost, but it is simpler to read and interpret using the binned color scale.
+
+Exercise 4. Explore the ?geom_sf_text() function and add the actual number of cases to the subregions in the plot, as was done on the SLC website.
+
+```{r}
+ggplot(data = full_df) +
+  geom_sf(aes(fill = active_cases)) +
+  geom_sf_text(data = full_df, aes(label = active_cases), color = "grey40") +
+  scale_fill_viridis_c(option = "turbo") +
+  theme_void()
+```
+
+
+## 6.3
+
+```{r}
+library(tidyverse)
+library(here)
+hpi_df <- read_csv(here("data/hpi-tidy.csv"))
+world_df <- ggplot2::map_data("world")
+
+world_hpi_full <- left_join(hpi_df, world_df, by = c("Country" = "region"))
+
+```
+
+
+Exericse 1. Make a map of a variable of your choosing. In coord_map(), use projection = "mercator", which is also the default (we will see in a later exercise that this probably is not the best choice).
+
+```{r}
+world_hpi_full %>%
+  ggplot(aes(x = long, y = lat, group = group)) +
+  geom_polygon(colour = "black", aes(fill = LifeExpectancy)) +
+  coord_map(projection = "mercator") +
+  theme_void() +
+  scale_fill_viridis_c()
+```
+
+
+Exercise 2. You may notice that the United States does not get coloured in your map. Examine this issue further and fix the map so that the United States is coloured.
+
+```{r}
+
+# world_hpi_full %>%
+#   filter(Country == "United States of America")
+# 
+# 
+# world_df %>%
+#   filter(region == "USA")
+# 
+#   
+# world_hpi_full %>%
+#   filter(Country == "USA")
+
+hpid_df %>% distinct(Country) 
+
+hpid_df <-
+  hpi_df %>%
+  mutate(Country = fct_recode(Country, "USA" = "United States of America"))
+
+world_hpi_full_fix <- left_join(hpi_df, world_df, by = c("Country" = "region"))
+
+
+world_hpi_full_fix <- left_join(hpi_df %>%
+                              mutate(Country = ifelse(Country == "United States of America", "USA", Country)), 
+                            world_df, by = c("Country" = "region"))
+
+
+world_hpi_full_fix %>%
+  ggplot(aes(x = long, y = lat, group = group)) +
+  geom_polygon(colour = "black", aes(fill = LifeExpectancy)) +
+  coord_map(projection = "mercator") +
+  theme_void() +
+  scale_fill_viridis_c()
+
+```
+
+
+Exercise 3. You may have noticed that there are two horizontal stripes across your map. This is an issue that drove me nuts! Check out this submitted issue on ggplot2’s GitHub page for the reason for the error as well as a fix. Use it to fix your plot.
+
+```{r}
+library(gridExtra)
+
+world_hpi_full_fix %>%
+  ggplot(aes(x = long, y = lat, group = group)) +
+  geom_polygon(colour = "black", aes(fill = LifeExpectancy)) +
+  coord_map(projection = "mercator", xlim=c(-180,180)) +
+  theme_void() +
+  scale_fill_viridis_c()
+
+```
+
+Exercise 4. Read about Mercator projections in this blog post. What does this source say about the sizes of Greenland vs. Africa in a Mercator projection?
+
+-   It doesn't not preserve area, but it is popular because it preserves angles. Africa is 14X larger than Greenland in reality, but the Mercator makes it look so big because it is close to the North Pole.
+
+
+Exercise 5. Examine all of the different options for map projection with ?mapproject. Then, change the projection to "globular". Change the projection again to "gilbert". How does the relative size of Greenland to Africa change in the projections?
+
+```{r}
+world_hpi_full_fix %>%
+  ggplot(aes(x = long, y = lat, group = group)) +
+  geom_polygon(colour = "black", aes(fill = LifeExpectancy)) +
+  coord_map(projection = "gilbert", xlim=c(-180,180)) +
+  theme_void() +
+  scale_fill_viridis_c()
+```
+

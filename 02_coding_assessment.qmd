@@ -1,0 +1,112 @@
+---
+title: "Coding Assesment 2"
+author: "Ben Sunshine"
+format: 
+  html:
+    embed-resources: true
+---
+
+```{r}
+library(maps)
+library(tidyverse)
+library(here) 
+
+state_df <- ggplot2::map_data("state")
+
+election_df <- read_csv(here("data/2020_county_pres.csv")) |>
+ group_by(state_name) |>
+ summarise(total_gop = sum(votes_gop), total_dem = sum(votes_dem)) |>
+ mutate(percent_gop = 100 * total_gop / (total_gop + total_dem)) |>
+ mutate(state_name = str_to_lower(state_name))
+
+
+```
+
+Question 1:
+
+```{r}
+joined_state_data <- left_join(election_df, state_df, by = c("state_name" = "region"))
+
+joined_state_data %>%
+  ggplot(aes(x = long, y = lat, group = group)) +
+  geom_polygon(colour = "black", aes(fill = percent_gop)) +
+  coord_map(projection = "albers", lat0 = 39, lat1 = 45) +
+  theme_void() +
+  scale_fill_viridis_c()
+```
+
+
+Question 2:
+
+a. 
+```{r}
+library(here)
+statsurvey_df <- read_csv(here("data/stat113_survey.csv"))
+```
+
+```{r}
+no_na_facebook_12 <-
+  statsurvey_df %>%
+  mutate(time_year = as.numeric(time_year),
+         time_year = ifelse(time_semester == "S", time_year-1, time_year),
+         Facebook = ifelse(is.na(Facebook), 0, Facebook),
+         pretty_year = 2000+time_year) %>%
+  filter(time_year > 12)
+  
+
+no_na_facebook_12 %>%
+  ggplot(aes(x = as.factor(pretty_year), y = Facebook)) +
+  geom_boxplot() +
+  labs(x = "Year",
+       y = "Facebook Friends") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+
+b.
+```{r}
+summarise_facebook_prop <-
+  no_na_facebook_12 %>%
+  mutate(has_facebook = ifelse(Facebook == 0, 'No', 'Yes')) %>%
+  group_by(pretty_year, has_facebook) %>%
+  summarise(n_students = n()) %>%
+  ungroup() %>%
+  pivot_wider(names_from = has_facebook, values_from = n_students) %>%
+  mutate(facebook_prop = Yes/(No+Yes)) %>%
+  mutate(n = No + Yes) %>%
+  mutate(samp_prop = Yes / n,
+         se = sqrt(samp_prop * (1-samp_prop)/(No + Yes)),
+         lb_se = facebook_prop - se,
+         ub_se = facebook_prop + se,
+         pretty_year = as.factor(pretty_year))
+
+
+
+summarise_facebook_prop %>%
+  ggplot(aes(x = pretty_year, y = facebook_prop)) +
+  geom_errorbar(aes(ymin = lb_se, ymax = ub_se, colour = "#E42B1C")) +
+  geom_point(aes(x = pretty_year, y = facebook_prop)) +
+  labs(x = "Year",
+       y = "Proportion Having Facebook") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+```
+
+
+
+c.
+```{r}
+statsurvey_partc <- statsurvey_df |> filter(GPA <= 4.0 & !is.na(Tattoo))
+ggplot(data = statsurvey_partc, aes(x = Tattoo, y = GPA)) +
+  geom_violin(aes(fill = Tattoo)) +
+  labs(x = "Has Tattoo",
+       y = "Student GPA",
+       title = "Distribituion of GPAs for Students With and Without Tattoos",
+       subtitle = "Some observations were removed due to\ndata entry errors in GPA (GPAs above 4.0)") +
+  coord_cartesian(ylim = c(0,4)) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+

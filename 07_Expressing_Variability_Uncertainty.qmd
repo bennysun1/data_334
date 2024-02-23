@@ -1,0 +1,297 @@
+---
+title: "07 Expressing Variability/Uncertainty"
+author: "Ben Sunshine"
+format: 
+  html:
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+---
+
+## 2/7/24
+
+## 7.1
+```{r}
+library(tidyverse)
+theme_set(theme_minimal())
+
+library(here)
+pokemon_df <- read_csv(here("data/pokemon_full.csv"))
+pokemon_height <- pokemon_df |> 
+  filter(Type %in% c("Bug", "Electric", "Fighting", "Flying",
+                     "Grass", "Steel")) |>
+  group_by(Type) |>
+  summarise(avg_height = mean(height)) |>
+  mutate(Type = fct_reorder(Type, avg_height))
+
+ggplot(data = pokemon_height, aes(x = Type, y = avg_height)) +
+  geom_col() +
+  coord_flip()
+```
+
+Exercise 1. What can’t we see from this graphic that would be useful?
+
+-   We can't see the distribution of the height variable in each Pokemon type.
+
+Exercise 2. Make a different plot that shows more relevant features about the distribution of the height variable in each Pokemon type.
+
+
+```{r}
+library(ggbeeswarm)
+pokemon_df |> 
+  filter(Type %in% c("Bug", "Electric", "Fighting", "Flying",
+                     "Grass", "Steel")) %>%
+  ggplot(aes(x = Type, y = height)) +
+  geom_beeswarm() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+```{r}
+library(openintro)
+data(mlb_players_18)
+mlb_sum <- mlb_players_18 |> group_by(position) |>
+  summarise(med_hr = median(HR)) |>
+  mutate(position = fct_reorder(position, med_hr))
+ggplot(data = mlb_sum, aes(x = position, y = med_hr)) +
+  geom_col() +
+  coord_flip()
+```
+
+
+Exercise 3. “Fix” the previous plot to show the underlying variability in the number of homeruns for each player position by making a set of boxplots.
+
+```{r}
+joined_mlb <- 
+  left_join(mlb_players_18, mlb_sum, by = c("position" = "position")) %>%
+  mutate(position = fct_reorder(position, med_hr))
+  
+joined_mlb %>%
+  ggplot(aes(x = position, y = HR)) +
+  geom_boxplot() +
+  coord_flip()
+```
+
+Exercise 4.
+
+Consider a news channel covering a developing hurricane. Which of these types of graphs would better help the general public with the potential variability of the hurricane’s path?
+
+-   I would select graph 1, because it shows the viewer the distribution of all possible paths. This allows the viewers to see the trends in the path, and also see the paths that could be considered outliers.
+
+
+Exercise 5.
+
+Next, consider fivethirtyeight.com’s coverage of the 2020 presidential election. Much of their forecast given on this page can be simply summarised by saying they predict Biden to win the election with 89% probability. So, why make the supplementary graphics that say the same thing but use a lot more space?
+
+-   If you just say "they predict Biden to win the election with 89% probability" you lose all the data that goes into making that prediction. The graphics showed 2 possible ways which Trump could have won and multiple different way Biden could have won in different states.
+
+
+## 2/7/24
+
+## 7.2
+
+```{r}
+library(here)
+statsurvey_df <- read_csv(here("data/stat113_survey.csv"))
+```
+
+
+```{r}
+statsurvey_df_nomiss <-
+  statsurvey_df %>%
+  mutate(time_year = as.numeric(time_year),
+         academic_year = ifelse(time_semester == "S", time_year-1, time_year)) %>%
+  relocate(academic_year) %>%
+  filter(GPA <= 4 & !is.na(GPA))
+
+statsurvey_df_nomiss %>%
+  ggplot(aes(x = GPA)) +
+  geom_histogram()
+```
+
+```{r}
+statsurvey_df_summarised <-
+  statsurvey_df_nomiss %>%
+  group_by(academic_year) %>%
+  summarise(n_students = n(),
+            sd_gpa = sd(GPA),
+            mean_gpa = mean(GPA)) %>%
+  mutate(se = sd_gpa/sqrt(n_students),
+         lb_se = mean_gpa - se,
+         ub_se = mean_gpa + se,
+         academic_year = academic_year+2000)
+```
+
+```{r}
+statsurvey_df_summarised %>%
+  ggplot(aes(x = academic_year, y = mean_gpa)) +
+  geom_errorbar(aes(ymin = lb_se, ymax = ub_se, colour = "#E42B1C")) +
+  geom_point(aes(x = academic_year, y = mean_gpa)) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+```
+
+
+
+## 7.3
+
+Exercise 1. Is there evidence from the STAT 113 survey that tattoos have become more or less common (at least among SLU students)? Construct a plot that shows the proportion of students who have a Tattoo in each semester from the STAT 113 survey, along with standard error bars for the estimate in each semester.
+
+```{r}
+# Higham Way: 
+survey_tattoo <-
+  statsurvey_df %>%
+  filter(!is.na(Tattoo)) %>%
+  group_by(academic_year, Tattoo) %>%
+  summarise(n_students = n()) %>%
+  ungroup() %>%
+  pivot_wider(names_from = Tattoo, values_from = n_students) %>%
+  mutate(mean_tattoo = Yes/(No+Yes)) %>%
+  mutate(n = No + Yes) %>%
+  mutate(samp_prop = Yes / n,
+         se = sqrt(samp_prop * (1-samp_prop)/(No + Yes)),
+         lb_se = mean_tattoo - se,
+         ub_se = mean_tattoo + se,
+         academic_year = academic_year+2000)
+
+
+# My way:
+# statsurvey_df %>%
+#   mutate(time_year = as.numeric(time_year),
+#          academic_year = ifelse(time_semester == "S", time_year-1, time_year)) %>%
+#   relocate(academic_year) %>%
+#   filter(!is.na(Tattoo)) %>%
+#   mutate(is_tattoo = ifelse(Tattoo == 'Yes', 1, 0)) %>%
+#   group_by(academic_year) %>%
+#   summarise(n_students = n(),
+#             mean_tattooed_prop = mean(is_tattoo),
+#             se = sqrt(
+#               ((mean(is_tattoo)/n()) * (1-(mean(is_tattoo)/n())))/n()
+#               )
+#             ) %>%
+#   mutate(lb_se = mean_tattoo - se,
+#          ub_se = mean_tattoo + se,
+#          academic_year = academic_year+2000)
+  
+```
+
+```{r}
+survey_tattoo %>%
+  ggplot(aes(x = academic_year, y = mean_tattoo)) +
+  geom_errorbar(aes(ymin = lb_se, ymax = ub_se, colour = "#E42B1C")) +
+  geom_point(aes(x = academic_year, y = mean_tattoo)) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+
+
+## 2/12/24
+
+```{r}
+library(here)
+library(tidyverse)
+library(broom)
+```
+
+
+```{r}
+statsurvey_df <- read_csv(here("data/stat113_survey.csv"))
+
+statsurvey_nomiss <- statsurvey_df |> filter(!is.na(GPA))
+statsurvey_nomiss <- statsurvey_nomiss |>
+  mutate(time_year = as.numeric(time_year)) |>
+  mutate(a_year = if_else(time_semester == "S",
+                          true = time_year - 1,
+                          false = time_year)) |>
+  filter(GPA <= 4.0) |>
+  mutate(a_year_fact = as.factor(a_year),
+         a_year = a_year + 2000)
+```
+
+```{r}
+year_linear <- lm(GPA ~ a_year, data = statsurvey_nomiss)
+year_linear %>% tidy()
+```
+
+```{r}
+year_ind_mod <- lm(GPA ~ a_year_fact, data = statsurvey_nomiss)
+year_ind_mod %>% tidy()
+```
+
+
+```{r}
+glance(year_linear)
+glance(year_ind_mod)
+```
+
+Steps 2 and 3 on Handout
+```{r}
+## create grid
+grid <- tibble(a_year = 2005:2021)
+
+# interval = "prediction"... indicates We are 95% confident the GPA of one student is between x and y
+aug_linear <- augment(year_linear, newdata = grid, interval = "confidence")
+
+aug_linear
+```
+
+
+```{r}
+aug_linear %>%
+  ggplot(aes(x = a_year, y = .fitted)) +
+  geom_jitter(aes(x = a_year, y = GPA), data = statsurvey_nomiss, width = 0.25, alpha = 0.3, shape = 21) +
+  geom_errorbar(aes(ymin = .lower, ymax = .upper, colour = "darkred"), width = 0.25) +
+  geom_point(aes(x = a_year, y = .fitted), color = "darkred") +
+  geom_line(alpha = 0.4) +
+  labs(x = "Academic Year",
+       y = "GPA",
+       caption = "Error bars are 95% confidence intervals for the mean response") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+## points look okay but there are so many that the reader may get distracted from the trend in the mean
+```
+
+
+#3 2/19/24
+
+```{r}
+year_linear
+year_aug <- augment(year_linear)
+# linearity
+#3 check scatterpolot of gpa vs academic year
+
+statsurvey_nomiss %>%
+  ggplot(aes(x = a_year, 
+         y = GPA)) +
+  geom_jitter(width = 0.2, alpha = 0.2)
+
+
+ 
+# normality:
+# histogram of the residuals
+year_aug %>%
+ggplot(aes(x= .resid)) +
+  geom_histogram(color = "blue",
+                 fill = 'lightblue',
+                 bins = 20)
+
+#constant variance
+# residual plot of residual vs fitted
+
+year_aug %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_jitter(alpha = 0.4) 
+
+
+# independence:
+## think about how data was collected
+```
+
+z
+
+
+
+
