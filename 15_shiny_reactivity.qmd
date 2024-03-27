@@ -1,0 +1,285 @@
+---
+title: "Section 15: Shiny Reactivity"
+format: html
+editor: visual
+---
+
+## 3/27/24
+
+## 15.2 Another Example Tennis App
+
+```{r}
+library(tidyverse)
+
+theme_set(theme_minimal())
+
+atp_df <- read_csv("https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_2023.csv")
+wta_df <- read_csv("https://raw.githubusercontent.com/JeffSackmann/tennis_wta/master/wta_matches_2023.csv")
+
+both_df <- bind_rows(atp_df, wta_df)
+
+both_long <- both_df |> pivot_longer(c(winner_name, loser_name))
+
+## only keep players who have player over 50 matches
+both_n50 <- both_long |> group_by(value) |> summarise(n = n()) |>
+  filter(n > 50)
+
+## construct various statistics
+major_tennis <- semi_join(both_long, both_n50, by = c("value"))
+major_tennis <- major_tennis |> mutate(w_svperc = 100 * w_1stIn / w_svpt,
+                        l_svperc = 100 * l_1stIn / l_svpt,
+                        w_firstwon = 100 * w_1stWon / w_1stIn,
+                        l_firstwon = 100 * l_1stWon / l_1stIn,
+                        w_secondwon = 100 * w_2ndWon / (w_svpt - w_1stIn),
+                        l_secondwon = 100 * l_2ndWon / (l_svpt - l_1stIn))
+```
+
+```{r}
+major_tennis_w <- major_tennis |> filter(name == "winner_name")
+major_tennis_l <- major_tennis |> filter(name == "loser_name")
+
+w_small <- major_tennis_w |> select(value, winner_seed, w_ace, w_df,
+                                    w_svperc, w_firstwon, w_secondwon) |>
+  rename(seed = winner_seed, ace = w_ace, df = w_df, svperc = w_svperc,
+         firstwon = w_firstwon, secondwon = w_secondwon)
+
+l_small <- major_tennis_l |> select(value, loser_seed, l_ace, l_df,
+                                    l_svperc, l_firstwon, l_secondwon) |>
+  rename(seed = loser_seed, ace = l_ace, df = l_df, svperc = l_svperc,
+         firstwon = l_firstwon, secondwon = l_secondwon)
+
+df <- bind_rows(w_small, l_small) |>
+  rename(player = "value")
+df
+#> # A tibble: 3,637 × 7
+#>   player              seed   ace    df svperc firstwon secondwon
+#>   <chr>              <dbl> <dbl> <dbl>  <dbl>    <dbl>     <dbl>
+#> 1 Taylor Fritz           3    15     2   61.2     86.5      48.5
+#> 2 Frances Tiafoe        NA     3     1   70.4     78.9      37.5
+#> 3 Taylor Fritz           3    11     0   62.5     88        63.3
+#> 4 Frances Tiafoe        NA     5     4   60.7     83.8      45.8
+#> 5 Stefanos Tsitsipas     1     9     1   53.1     82.7      60.9
+#> 6 Lorenzo Musetti       NA     2     1   61.0     72        75  
+#> # ℹ 3,631 more rows
+```
+
+
+Step 1: Make a histogram of one variable for one specific player.
+```{r}
+df %>%
+  filter(player == "Taylor Fritz") %>%
+  ggplot(aes(x = svperc)) +
+  geom_histogram(fill = "lightblue", colour = "black", bins = 15)
+```
+
+
+Step 2: Set up our shiny app inputs. Before, we just had a single input. Now, we will have two: one for player and one for variable. Let’s focus on one at a time, doing player first. Type shinyapp and click on the R Studio snippet to bring up a base app.
+
+
+Step 3: Now that we have one of our inputs in the UI, let’s work on the server. First, we will ignore the input$ selector and put in our graph from step 1. We again use the plotOutput(), renderPlot({}) combination.
+
+
+Step 4: Now we want to connect the input defined in the UI to the server so that the graph changes depending on which player we select.
+
+Step 5: Now we repeat some of these steps for a second input: a variable that the user selects. We will use radioButtons() as the input in the UI.
+
+We will discuss why we need to take some extra steps to perform the “user can select a variable” operation in class. In particular, we will need to briefly discuss tidy evaluation to use some of the tidyverse functions in shiny.
+
+Step 6: Finally, we will add a third input that will let the user change the number of bins in the histogram.
+
+Step 7: Use the glue() function from the glue package to change the title of the histogram to include the name of the player in the plot.
+
+```{r}
+library(shiny)
+
+var_choices <- sort(names(df[3:7]))
+unique_players <- df %>% distinct(player) %>% pull() %>% sort()
+
+ui <- fluidPage(
+  sidebarLayout(
+    sidebarPanel(
+      selectInput(inputId = "player", 
+                  label = "Select a Player:", 
+                  choices = unique_players, 
+                  selected = "Adrian Mannarino"),
+      radioButtons(inputId = "var_sel",
+                   label = "Choose a Variable:",
+                   choices = var_choices,
+                   selected = "svperc"),
+      sliderInput(inputId = "nbins", 
+                  label = "Select Bins:",
+                  min = 1, 
+                  max = 30, 
+                  value = 15)
+    ),
+    mainPanel(
+      plotOutput("histogramOutput")
+    )
+    
+  )
+)
+    
+server <- function(input, output, session) {
+  
+  tennis_reactive <- reactive({
+    df %>% filter(player == input$player)
+  })
+  
+  output$histogramOutput <- renderPlot({
+    
+      ggplot(data = tennis_reactive(),
+             aes(x = .data[[input$var_sel]])) +
+      geom_histogram(fill = "darkolivegreen1", 
+                     colour = "black", 
+                     bins = input$nbins) +
+      labs(title = glue::glue(input$var_sel, 
+                              " Statistics for ",
+                              input$player)) +
+      theme(plot.title = element_text(hjust = 0.5)) +
+      theme_minimal(base_size = 34)
+  })
+}
+
+shinyApp(ui, server)
+
+
+```
+
+__Tidy Evaluation__
+
+```{r}
+subset_by_cyl <- function(cyl_val) {
+  mtcars |> filter(cyl == cyl_val)
+}
+subset_by_cyl(cyl_val = 8)
+# works as expected...
+# similar to filter majors data by a particular major
+# no issue because cyl_val is not an input for a variable in the data set
+
+#>                      mpg cyl  disp  hp drat    wt  qsec vs am gear carb
+#> Hornet Sportabout   18.7   8 360.0 175 3.15 3.440 17.02  0  0    3    2
+#> Duster 360          14.3   8 360.0 245 3.21 3.570 15.84  0  0    3    4
+#> Merc 450SE          16.4   8 275.8 180 3.07 4.070 17.40  0  0    3    3
+#> Merc 450SL          17.3   8 275.8 180 3.07 3.730 17.60  0  0    3    3
+#> Merc 450SLC         15.2   8 275.8 180 3.07 3.780 18.00  0  0    3    3
+#> Cadillac Fleetwood  10.4   8 472.0 205 2.93 5.250 17.98  0  0    3    4
+#> Lincoln Continental 10.4   8 460.0 215 3.00 5.424 17.82  0  0    3    4
+#> Chrysler Imperial   14.7   8 440.0 230 3.23 5.345 17.42  0  0    3    4
+#> Dodge Challenger    15.5   8 318.0 150 2.76 3.520 16.87  0  0    3    2
+#> AMC Javelin         15.2   8 304.0 150 3.15 3.435 17.30  0  0    3    2
+#> Camaro Z28          13.3   8 350.0 245 3.73 3.840 15.41  0  0    3    4
+#> Pontiac Firebird    19.2   8 400.0 175 3.08 3.845 17.05  0  0    3    2
+#> Ford Pantera L      15.8   8 351.0 264 4.22 3.170 14.50  0  1    5    4
+#> Maserati Bora       15.0   8 301.0 335 3.54 3.570 14.60  0  1    5    8
+subset_by_cyl(cyl_val = "8")
+#>                      mpg cyl  disp  hp drat    wt  qsec vs am gear carb
+#> Hornet Sportabout   18.7   8 360.0 175 3.15 3.440 17.02  0  0    3    2
+#> Duster 360          14.3   8 360.0 245 3.21 3.570 15.84  0  0    3    4
+#> Merc 450SE          16.4   8 275.8 180 3.07 4.070 17.40  0  0    3    3
+#> Merc 450SL          17.3   8 275.8 180 3.07 3.730 17.60  0  0    3    3
+#> Merc 450SLC         15.2   8 275.8 180 3.07 3.780 18.00  0  0    3    3
+#> Cadillac Fleetwood  10.4   8 472.0 205 2.93 5.250 17.98  0  0    3    4
+#> Lincoln Continental 10.4   8 460.0 215 3.00 5.424 17.82  0  0    3    4
+#> Chrysler Imperial   14.7   8 440.0 230 3.23 5.345 17.42  0  0    3    4
+#> Dodge Challenger    15.5   8 318.0 150 2.76 3.520 16.87  0  0    3    2
+#> AMC Javelin         15.2   8 304.0 150 3.15 3.435 17.30  0  0    3    2
+#> Camaro Z28          13.3   8 350.0 245 3.73 3.840 15.41  0  0    3    4
+#> Pontiac Firebird    19.2   8 400.0 175 3.08 3.845 17.05  0  0    3    2
+#> Ford Pantera L      15.8   8 351.0 264 4.22 3.170 14.50  0  1    5    4
+#> Maserati Bora       15.0   8 301.0 335 3.54 3.570 14.60  0  1    5    8
+
+# doesn't work need to let R know these are these variables are coming from dataframe
+plot_mtscatter <- function(x_var, y_var) {
+  ggplot(data = mtcars, aes(x = x_var, y = y_var)) +
+    geom_point() +
+    theme_minimal()
+}
+
+plot_mtscatter <- function(x_var, y_var) {
+  ggplot(data = mtcars, aes(x = .data[[x_var]], y = .data[[y_var]])) +
+    geom_point() +
+    theme_minimal()
+}
+
+plot_mtscatter(x_var = "hp", y_var = "mpg")
+```
+
+```{r}
+
+sort_mtcars <- function(var_sort) {
+  mtcars |> arrange(var_sort)
+}
+sort_mtcars(var_sort = "mpg")
+#>                      mpg cyl  disp  hp drat    wt  qsec vs am gear carb
+#> Mazda RX4           21.0   6 160.0 110 3.90 2.620 16.46  0  1    4    4
+#> Mazda RX4 Wag       21.0   6 160.0 110 3.90 2.875 17.02  0  1    4    4
+#> Datsun 710          22.8   4 108.0  93 3.85 2.320 18.61  1  1    4    1
+#> Hornet 4 Drive      21.4   6 258.0 110 3.08 3.215 19.44  1  0    3    1
+#> Hornet Sportabout   18.7   8 360.0 175 3.15 3.440 17.02  0  0    3    2
+#> Valiant             18.1   6 225.0 105 2.76 3.460 20.22  1  0    3    1
+#> Duster 360          14.3   8 360.0 245 3.21 3.570 15.84  0  0    3    4
+#> Merc 240D           24.4   4 146.7  62 3.69 3.190 20.00  1  0    4    2
+#> Merc 230            22.8   4 140.8  95 3.92 3.150 22.90  1  0    4    2
+#> Merc 280            19.2   6 167.6 123 3.92 3.440 18.30  1  0    4    4
+#> Merc 280C           17.8   6 167.6 123 3.92 3.440 18.90  1  0    4    4
+#> Merc 450SE          16.4   8 275.8 180 3.07 4.070 17.40  0  0    3    3
+#> Merc 450SL          17.3   8 275.8 180 3.07 3.730 17.60  0  0    3    3
+#> Merc 450SLC         15.2   8 275.8 180 3.07 3.780 18.00  0  0    3    3
+#> Cadillac Fleetwood  10.4   8 472.0 205 2.93 5.250 17.98  0  0    3    4
+#> Lincoln Continental 10.4   8 460.0 215 3.00 5.424 17.82  0  0    3    4
+#> Chrysler Imperial   14.7   8 440.0 230 3.23 5.345 17.42  0  0    3    4
+#> Fiat 128            32.4   4  78.7  66 4.08 2.200 19.47  1  1    4    1
+#> Honda Civic         30.4   4  75.7  52 4.93 1.615 18.52  1  1    4    2
+#> Toyota Corolla      33.9   4  71.1  65 4.22 1.835 19.90  1  1    4    1
+#> Toyota Corona       21.5   4 120.1  97 3.70 2.465 20.01  1  0    3    1
+#> Dodge Challenger    15.5   8 318.0 150 2.76 3.520 16.87  0  0    3    2
+#> AMC Javelin         15.2   8 304.0 150 3.15 3.435 17.30  0  0    3    2
+#> Camaro Z28          13.3   8 350.0 245 3.73 3.840 15.41  0  0    3    4
+#> Pontiac Firebird    19.2   8 400.0 175 3.08 3.845 17.05  0  0    3    2
+#> Fiat X1-9           27.3   4  79.0  66 4.08 1.935 18.90  1  1    4    1
+#> Porsche 914-2       26.0   4 120.3  91 4.43 2.140 16.70  0  1    5    2
+#> Lotus Europa        30.4   4  95.1 113 3.77 1.513 16.90  1  1    5    2
+#> Ford Pantera L      15.8   8 351.0 264 4.22 3.170 14.50  0  1    5    4
+#> Ferrari Dino        19.7   6 145.0 175 3.62 2.770 15.50  0  1    5    6
+#> Maserati Bora       15.0   8 301.0 335 3.54 3.570 14.60  0  1    5    8
+#> Volvo 142E          21.4   4 121.0 109 4.11 2.780 18.60  1  1    4    2
+
+select_mtcars <- function(var_select) {
+  mtcars |> select(.data[[var_select]])
+}
+select_mtcars(var_select = "mpg")
+#>                      mpg
+#> Mazda RX4           21.0
+#> Mazda RX4 Wag       21.0
+#> Datsun 710          22.8
+#> Hornet 4 Drive      21.4
+#> Hornet Sportabout   18.7
+#> Valiant             18.1
+#> Duster 360          14.3
+#> Merc 240D           24.4
+#> Merc 230            22.8
+#> Merc 280            19.2
+#> Merc 280C           17.8
+#> Merc 450SE          16.4
+#> Merc 450SL          17.3
+#> Merc 450SLC         15.2
+#> Cadillac Fleetwood  10.4
+#> Lincoln Continental 10.4
+#> Chrysler Imperial   14.7
+#> Fiat 128            32.4
+#> Honda Civic         30.4
+#> Toyota Corolla      33.9
+#> Toyota Corona       21.5
+#> Dodge Challenger    15.5
+#> AMC Javelin         15.2
+#> Camaro Z28          13.3
+#> Pontiac Firebird    19.2
+#> Fiat X1-9           27.3
+#> Porsche 914-2       26.0
+#> Lotus Europa        30.4
+#> Ford Pantera L      15.8
+#> Ferrari Dino        19.7
+#> Maserati Bora       15.0
+#> Volvo 142E          21.4
+```
+

@@ -1,0 +1,300 @@
+---
+title: "10 Logistic Model Visualization"
+author: "Ben Sunshine"
+format: 
+  html:
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+---
+
+## 2/25/24
+
+## 10.1
+
+```{r}
+library(tidyverse)
+library(here)
+library(broom)
+theme_set(theme_minimal())
+
+titanic_df <- read_csv(here("data/titanic.csv"),
+                       col_types = list(Pclass = col_factor())) |>
+  mutate(Pclass = fct_recode(Pclass,
+                             "1st" = "1",
+                             "2nd" = "2",
+                             "3rd" = "3"))
+titanic_df
+#> # A tibble: 891 × 12
+#>   PassengerId Survived Pclass Name       Sex     Age SibSp Parch Ticket  Fare
+#>         <dbl>    <dbl> <fct>  <chr>      <chr> <dbl> <dbl> <dbl> <chr>  <dbl>
+#> 1           1        0 3rd    Braund, M… male     22     1     0 A/5 2…  7.25
+#> 2           2        1 1st    Cumings, … fema…    38     1     0 PC 17… 71.3 
+#> 3           3        1 3rd    Heikkinen… fema…    26     0     0 STON/…  7.92
+#> 4           4        1 1st    Futrelle,… fema…    35     1     0 113803 53.1 
+#> 5           5        0 3rd    Allen, Mr… male     35     0     0 373450  8.05
+#> 6           6        0 3rd    Moran, Mr… male     NA     0     0 330877  8.46
+#> # ℹ 885 more rows
+#> # ℹ 2 more variables: Cabin <chr>, Embarked <chr>
+```
+
+
+
+```{r}
+titanic_mod <- glm(Survived ~ Age,
+                   data = titanic_df, family = "binomial")
+titanic_mod
+#> 
+#> Call:  glm(formula = Survived ~ Age, family = "binomial", data = titanic_df)
+#> 
+#> Coefficients:
+#> (Intercept)          Age  
+#>    -0.05672     -0.01096  
+#> 
+#> Degrees of Freedom: 713 Total (i.e. Null);  712 Residual
+#>   (177 observations deleted due to missingness)
+#> Null Deviance:       964.5 
+#> Residual Deviance: 960.2     AIC: 964.2
+```
+
+
+```{r}
+titanic_mod |> tidy()
+#> # A tibble: 2 × 5
+#>   term        estimate std.error statistic p.value
+#>   <chr>          <dbl>     <dbl>     <dbl>   <dbl>
+#> 1 (Intercept)  -0.0567   0.174      -0.327  0.744 
+#> 2 Age          -0.0110   0.00533    -2.06   0.0397
+```
+
+
+```{r}
+ggplot(data = titanic_df, aes(x = Age, y = Survived)) +
+  geom_jitter(height = 0.05) +
+  geom_smooth(method = "glm", method.args = list(family = "binomial")) +
+  theme_minimal()
+```
+
+-   Log Odds: The model predicts that a one year increase in age is associated with a 0.00261 decrease in the log-odds of survival.
+
+-   Linear Odds: The model predicts that, for a one year increase in age, odds of survival are the predicted odds of survival of the previous year of age times 0.989 (e^0.0110).
+
+
+
+Exercise 1. Fit a logistic regression model with Fare as a predictor. Obtain summary output with tidy() and use ggplot2 to construct a plot of the model.
+
+```{r}
+titanic_mod_fare <- glm(Survived ~ Fare,
+                   data = titanic_df, family = "binomial")
+
+titanic_mod_fare %>% tidy()
+
+ggplot(data = titanic_df, aes(x = Fare, y = Survived)) +
+  geom_jitter(height = 0.05) +
+  geom_smooth(method = "glm", method.args = list(family = "binomial")) +
+  theme_minimal()
+```
+
+
+Exercise 2. Fit a logistic regression model with Sex as the predictor. Make an attempt at interpreting the resulting fitted coefficient for Sex on either the log-odds scale or the odds scale (keeping in mind that Sex is categorical so your interpretation should be comparing odds of survival of female and male passengers).
+
+```{r}
+titanic_mod_sex <- glm(Survived ~ Sex,
+                   data = titanic_df, family = "binomial")
+
+titanic_mod_sex %>% tidy()
+```
+-   The model predicts that, for males, a decrease in the log odds of survival by 2.514 times compared to being female.
+
+
+## 2/26/24
+
+## 10.2
+
+Warm-up Exercise:
+
+```{r}
+rug_survived <-
+  titanic_df %>%
+  filter(Survived == 1)
+
+rug_died <-
+titanic_df %>%
+  filter(Survived == 0)
+
+ggplot(data = titanic_df, aes(x = Age, y = Survived)) +
+  # sides = "tb" is top and bottom
+  # "t" is top
+  geom_rug(data = rug_survived, sides = "t", alpha = 0.3) +
+  # "b" is bottom
+  geom_rug(data = rug_died, sides = "b", alpha = 0.3) +
+  geom_smooth(method = "glm", method.args = list(family = "binomial")) +
+  theme_minimal()
+```
+
+
+1. Fit the model with glm().
+```{r}
+titanic_large <- glm(Survived ~ Age + Sex + Pclass,
+                   data = titanic_df, family = "binomial")
+titanic_large
+```
+
+-   Model predict the odds of a male passenger surviving with all other variables held constant is exp(-2.52278).
+
+
+2. Construct a grid of predictor values with the data_grid() function from the modelr package.
+```{r}
+library(modelr)
+grid <- titanic_df |>
+  data_grid(
+    Age = seq_range(Age, n = 10),
+    Sex = c("female", "male"),
+    Pclass = c("1st", "2nd", "3rd")
+  ) 
+grid
+#> # A tibble: 60 × 3
+#>     Age Sex    Pclass
+#>   <dbl> <chr>  <chr> 
+#> 1  0.42 female 1st   
+#> 2  0.42 female 2nd   
+#> 3  0.42 female 3rd   
+#> 4  0.42 male   1st   
+#> 5  0.42 male   2nd   
+#> 6  0.42 male   3rd   
+#> # ℹ 54 more rows
+```
+
+
+
+Exercise 1. Examine the .fitted column in aug_surv. What are these values? Why are they not between 0 and 1?
+
+-   The .fitted values are the predicted log odds, which are from negative infiinity to positive infinity
+
+
+Exercise 2. Make a plot of the values of .fitted (without modifying them).
+
+```{r}
+aug_surv <- augment(titanic_large, newdata = grid,
+                    se_fit = TRUE)
+aug_surv
+#> # A tibble: 60 × 5
+#>     Age Sex    Pclass .fitted .se.fit
+#>   <dbl> <chr>  <chr>    <dbl>   <dbl>
+#> 1  0.42 female 1st     3.76     0.399
+#> 2  0.42 female 2nd     2.45     0.317
+#> 3  0.42 female 3rd     1.18     0.250
+#> 4  0.42 male   1st     1.24     0.357
+#> 5  0.42 male   2nd    -0.0711   0.296
+#> 6  0.42 male   3rd    -1.34     0.246
+#> # ℹ 54 more rows
+```
+
+```{r}
+
+aug_surv %>%
+  ggplot(aes(x = Age,
+             y = .fitted,
+             color = Sex)) +
+  geom_line(aes(x = Age, y = .fitted)) +
+  geom_rug(data = rug_survived, aes(x = Age, y = Survived), sides = "t", alpha = 0.3) +
+  geom_rug(data = rug_died, aes(x = Age, y = Survived), sides = "b", alpha = 0.3) +
+  facet_wrap(~Pclass)
+```
+
+
+Exercise 3. Convert .fitted to predicted probabilities with the following formula. Note that exp(3.2) is R code for...
+
+
+```{r}
+pred_prob_aug <-
+  aug_surv %>%
+  mutate(pred_prob = exp(.fitted)/(1+exp(.fitted)))
+```
+
+```{r}
+pred_prob_aug %>%
+  ggplot(aes(x = Age,
+             y = pred_prob
+             # makes the ticks colored by Sex
+             ,color = Sex)) +
+  geom_line(aes(x = Age, y = pred_prob, color = Sex)) +
+  geom_rug(data = rug_survived, aes(x = Age, y = Survived), sides = "t", alpha = 0.3) +
+  geom_rug(data = rug_died, aes(x = Age, y = Survived), sides = "b", alpha = 0.3) +
+  facet_wrap(~Pclass)
+```
+
+
+
+## 10.3
+
+Exercise 1. Add an Sex:Pclass interaction term to the previous model and fit the model with glm().
+
+```{r}
+titanic_int <- glm(Survived ~ Age + Sex + Pclass + Sex:Pclass,
+                     data = titanic_df, family = "binomial")
+titanic_int
+```
+
+
+Exercise 2. Obtain model predictions for both the previous model (without the interaction) and the new model (with the interaction). Convert the resulting .fitted column to predicted probabilities.
+
+```{r}
+grid <- titanic_df |>
+  data_grid(
+    Age = seq_range(Age, n = 10),
+    Sex = c("female", "male"),
+    Pclass = c("1st", "2nd", "3rd")
+  ) 
+grid
+```
+
+```{r}
+aug_surv_int <- augment(titanic_int, newdata = grid,
+                    se_fit = TRUE)
+pred_prob_aug_int <-
+  aug_surv_int %>%
+  mutate(pred_prob = exp(.fitted)/(1+exp(.fitted)))
+
+pred_prob_aug_int %>%
+  ggplot(aes(x = Age,
+             y = pred_prob,
+             color = Sex)) +
+  geom_line(aes(x = Age, y = pred_prob, color = Sex)) +
+  # geom_rug(data = rug_survived, sides = "t", alpha = 0.3) +
+  # geom_rug(data = rug_died, sides = "b", alpha = 0.3) +
+  facet_wrap(~Pclass)
+
+```
+
+Exercise 3. Construct a graphic that shows how the two models differ.
+
+```{r}
+plot_df <- bind_rows(lst(pred_prob_aug, pred_prob_aug_int), .id = "model")
+plot_df
+```
+
+
+```{r}
+plot_df %>%
+  ggplot(aes(x = Age,
+             y = pred_prob,
+             color = model)) +
+  geom_line(aes(color = model)) +
+  # geom_rug(data = rug_survived, aes(y = Survived), sides = "t", alpha = 0.3) +
+  # geom_rug(data = rug_died, aes(y = Survived), sides = "b", alpha = 0.3) +
+  facet_grid(Sex~Pclass)
+```
+
+
+Exercise 4. Which model is better? Use glance() on each model to obtain some model summary statistics and determine which model is the better “fit.”
+
+```{r}
+library(broom)
+titanic_large %>% glance
+titanic_int %>% glance()
+```
+
+-   The model with the interaction term is the bteter fit: it has a lower BIC and a lower AIC.
+
+

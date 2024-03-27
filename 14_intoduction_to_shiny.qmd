@@ -1,0 +1,270 @@
+---
+title: "14 Introduction to Shiny"
+author: "Ben Sunshine"
+format: 
+  html:
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+---
+
+## 3/11/24
+
+## Introduction to Shiny
+
+```{r}
+library(tidyverse)
+library(readxl)
+theme_set(theme_minimal())
+
+df <- read_excel("data/slu_graduates_17_23.xlsx")
+
+## fixes error in the data
+df <- df |> mutate(across(everything(),
+                           .fns = ~replace(., . ==  "STATS" , "STAT")))
+
+df_long <- df |> pivot_longer(4:9, names_to = "type",
+                              values_to = "discipline")
+
+df_major <- df_long |>
+  filter(type == "major1" | type == "major2" | type == "major3")
+
+df_major %>%
+  filter(discipline == "STAT") %>%
+  group_by(sex) %>%
+  summarise(n_student = n())
+
+df_stat <- df_major |> filter(discipline == "STAT") 
+
+df_statfull <- semi_join(df_long, df_stat, by = "adm_id") |>
+  filter(type == "major1" |
+           type == "major2" | 
+           type == "major3")
+
+df_nostat <- df_statfull |> filter(discipline != "STAT" &
+                              !is.na(discipline)) |>
+  group_by(discipline) |>
+  summarise(nstudent = n()) |>
+  mutate(discipline = fct_reorder(discipline, nstudent))
+
+ggplot(data = df_nostat, aes(x = discipline, y = nstudent)) +
+  geom_segment(aes(y = 0, yend = nstudent, xend = discipline),
+               colour = "brown") +
+  geom_point(colour = "darkred") + 
+  coord_flip() +
+  theme_minimal()
+```
+
+```{r}
+library(shiny)
+```
+
+```{r}
+# snippet::shinyapp
+# ui <- fluidPage(
+#     sidebarLayout(
+#     sidebarPanel(
+#       radioButtons("cyl_set", label = "Select a Cylinder Size", choices = c("4","6","8"))
+#       ),
+#     
+#     mainPanel(
+#       plotOutput("mpg_hist")
+#       )
+#     )
+#   )
+# 
+# server <- function(input, output, session) {
+#   mt_react <- reactive({
+#     mtcars %>% filter(cyl == input$cyl_set)
+#   })
+#   
+#   output$mpg_hist <- renderPlot({
+#     ggplot(data = mt_react(), aes(x = mpg)) +
+#     geom_histogram()
+#   })
+# }
+# 
+# shinyApp(ui, server)
+```
+
+```{r}
+unique_major_vec <- df_major |>
+  mutate(discipline = factor(discipline)) |>
+  pull(discipline) |> levels()
+## getting all of the unique values of discipline
+
+
+ui <- fluidPage(
+  sidebarLayout(
+    sidebarPanel(selectInput("major_choice",
+                             label = "Choose a Major:",
+                 choices = unique_major_vec),
+                 sliderInput("n_majors",
+                             label = "Choose Minimum:",
+                             min = 1, max = 15,
+                             value = 1, step = 1),
+                 radioButtons("major_minor_select",
+                              label = "Choose Majors or Minors",
+                              choices = c("major", "minor"))
+                 ),
+    mainPanel(
+      plotOutput("major_plot"),
+      tableOutput("male_female_summary")
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  
+  major_react <- reactive({
+    df_stat <- df_major |> filter(discipline == input$major_choice) 
+    
+    df_statfull <- semi_join(df_long, df_stat, by = "adm_id") |>
+      filter(str_detect(type, pattern = input$major_minor_select) == TRUE)
+    
+    df_nostat <- df_statfull |> filter(discipline != input$major_choice &
+                                         !is.na(discipline)) |>
+      group_by(discipline) |>
+      summarise(nstudent = n()) |>
+      mutate(discipline = fct_reorder(discipline, nstudent))
+    
+    df_nostat |> filter(nstudent >= input$n_majors)
+  })
+  
+  output$major_plot <- renderPlot({
+    ggplot(data = major_react(), aes(x = discipline, y = nstudent)) +
+      geom_segment(aes(y = 0, yend = nstudent, xend = discipline),
+                   colour = "brown") +
+      geom_point(colour = "darkred") + 
+      coord_flip() +
+      theme_minimal(base_size = 29)
+  })
+  
+  output$male_female_summary <- renderTable({
+    df_major %>% 
+      filter(discipline == input$major_choice) %>%
+      group_by(sex) %>%
+      summarise(n_students = n())
+
+  })
+  
+  
+}
+
+shinyApp(ui, server)
+```
+
+
+## 3/27/24
+
+## 14.1 Introduction to Shiny
+
+Exercise 1. Many students and faculty at St. Lawrence have used Shiny for some really cool projects! Some of these are stored at https://stlawu.shinyapps.io/index/. Choose an app from either the tab for SYE projects or the tab for Summer Research projects and answer the following questions.
+
+a. What makes the app interactive? In other words, what is a user allowed to change in the app?
+
+-   In the "Predict Covid Data with Different Models" shiny app, there is a dropdown for state and county, tabs for cumulative cases, daily cases, SIR model, checkbox inputs for the model type, numeric inputs for the Maximum case volume (K), Input the S (Susceptible) value, Input the I (Infected) value, and a date range input.
+
+b. What are the outputs of the app? In other words, what in the app updates when you change some of the things you described in part (a).
+
+-   The output is a line graph of the positive cases over the specified date range. You can also overlay the models to see the number of cases each model predicted throughout the time frame.
+
+c. Write a short one paragraph description describing the app you selected, what makes it interactive, and something interesting that you found while exploring the app.
+
+-   The app I chose plots Covid-19 cases over a date range specified by the user. In addition to the cumulative and daily cases, the predicted values for various model types can be overlayed on the plot to show each model's effectiveness. The user also has the ability to enter specific states, counties, dates, maximum case volumes, a "susceptible" value, and the "infected" value, all to give the models variables necessary for modeling. The ability to modify these variables, plots, and models included in the plots make it interactive. I found when comparing the actual daily cases to the predicted daily cases for the double exponential smoothing model when alpha = 1 and beta = 1, the predictions were extremely close to the actual values.
+
+
+Exercise 2. Choose another app from the SYE or the summer research tab at https://stlawu.shinyapps.io/index/. Answer the following questions.
+
+a. What makes the app interactive? In other words, what is a user allowed to change in the app?
+
+-   In the Maternity Health Data NY app, the user can select multiple tabs which show different maps, plots, and data cards. The maps are also interactive because the user can pan and zoom to look at specific regions. The user is also able to select specific maternity and census variables to examine in these plots.
+
+b. What are the outputs of the app? In other words, what in the app updates when you change some of the things you described in part (a).
+
+-   When changing the maternity and census variables the shading of the counties on the map changes depending on the mtrics. The same is true for the scatter plots, where the maternity variables are pn the y axis and the census variables are on the x axis.
+
+
+
+Next, to introduce yourself to some basic Shiny code syntax, read Chapter 1 of the Mastering Shiny textbook by Wickham: https://mastering-shiny.org/basic-app.html. Make sure that you can run the code in this section as you are reading along.
+
+Exercise 3. At the end of the section, complete the following exercises in 1.8 Exercises: Exercise 2, Exercise 3, and Exercise 4 (for this exercise, you should actually make the reactive expression that helps reduce the code duplication).
+
+2.   Should be input$x instead of just x.
+
+```{r}
+library(shiny)
+
+ui <- fluidPage(
+  sliderInput("x", label = "If x is", min = 1, max = 50, value = 30),
+  "then x times 5 is",
+  textOutput("product")
+)
+
+server <- function(input, output, session) {
+  output$product <- renderText({ 
+    input$x * 5
+  })
+}
+
+shinyApp(ui, server)
+```
+
+3.    Extend the app from the previous exercise to allow the user to set the value of the multiplier, y, so that the app yields the value of x * y. The final result should look like this:
+
+```{r}
+library(shiny)
+
+ui <- fluidPage(
+  sliderInput("x", label = "If x is", min = 1, max = 50, value = 30),
+  sliderInput("y", label = "If y is", min = 1, max = 50, value = 30),
+  "then x times 5 is",
+  textOutput("product")
+)
+
+server <- function(input, output, session) {
+  output$product <- renderText({ 
+    input$x * input$y
+  })
+}
+
+shinyApp(ui, server)
+```
+
+4.    Take the following app which adds some additional functionality to the last app described in the last exercise. What’s new? How could you reduce the amount of duplicated code in the app by using a reactive expression.
+
+```{r}
+library(shiny)
+
+ui <- fluidPage(
+  sliderInput("x", "If x is", min = 1, max = 50, value = 30),
+  sliderInput("y", "and y is", min = 1, max = 50, value = 5),
+  "then, (x * y) is", textOutput("product"),
+  "and, (x * y) + 5 is", textOutput("product_plus5"),
+  "and (x * y) + 10 is", textOutput("product_plus10")
+)
+
+server <- function(input, output, session) {
+  product <- reactive({
+    input$x * input$y
+  })
+  
+  output$product <- renderText({ 
+    product()
+  })
+  
+  output$product_plus5 <- renderText({ 
+    product() + 5
+  })
+  
+  output$product_plus10 <- renderText({ 
+    product() + 10
+  })
+}
+
+shinyApp(ui, server)
+
+
+```
+
+-   Now we output the product of x and y, the product of x and y plus 5, and the product of x and y plus 10. Instead of calculating each product of and over again, you can take the output$product and treat it like a function in the other renderTexts and add the necessary value to it.

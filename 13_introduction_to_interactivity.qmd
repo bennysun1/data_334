@@ -1,0 +1,354 @@
+---
+title: "13 Introduction to Interactivity"
+author: "Ben Sunshine"
+format: 
+  html:
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+---
+
+## 3/10/24
+
+## 13.1 Leaflet (Class Prep)
+
+```{r}
+library(devtools)
+library(uszipcodes)
+```
+
+```{r}
+library(tidyverse)
+library(here)
+theme_set(theme_minimal())
+
+beers <- read_csv(here("data/breweries.csv"))
+
+raw_zip <- uszipcodes::get_zip(beers$address)
+beers$Zip <- as.integer(uszipcodes::clean_zip(raw_zip))
+```
+
+```{r}
+zip_tab <- zip_table |> dplyr::select(Zip, Latitude, Longitude)
+beer_location <- inner_join(beers, zip_tab)
+beer_location
+```
+
+
+```{r}
+content <- beer_location |>
+  mutate(popup = paste0('<a href =', beer_location$website, '>',
+                        beer_location$brewery_name, '</a>'))
+```
+
+
+
+```{r}
+library(leaflet)
+
+beer_map <- leaflet(beer_location) |>
+  setView(lng = -98.583, lat = 39.833, zoom = 4) |>
+  addTiles() |>
+  addProviderTiles(providers$Esri.WorldGrayCanvas) |>
+  addMarkers(lng = beer_location$Longitude, lat = beer_location$Latitude,
+             clusterOptions = markerClusterOptions(),
+             popup = content$popup)
+```
+
+
+Exercise 1. Why is inner_join() the most appropriate join function to use here in this example? What observations will an inner_join() get rid of from beers? from zip_tab?
+
+-   An inner join is the most appropriate, because it joins only breweries with zip codes in the zip_tab data frame.  This prevents any breweries appearing in the resulting data frame with NA values which would be caused by a left join.
+
+Exercise 2a. Run leaflet(beer_location) |> setView(lng = -98.583, lat = 39.833, zoom = 4) and explain what the setView() function does.
+
+```{r}
+leaflet(beer_location) |> setView(lng = -98.583, lat = 39.833, zoom = 4)
+```
+
+-   setView() is used to set the latitude, longitude, and the zoom of the map.
+
+Exercise 2b. Run leaflet(beer_location) |> setView(lng = -98.583, lat = 39.833, zoom = 4) |> addTiles() and explain what the addTiles() function does.
+
+```{r}
+leaflet(beer_location) |> setView(lng = -98.583, lat = 39.833, zoom = 4) |> addTiles()
+```
+
+-   addTiles() adds the map overlay with the map data.
+
+Exercise 2c. Run leaflet(beer_location) |> setView(lng = -98.583, lat = 39.833, zoom = 4) |> addTiles() |> addProviderTiles(providers$Esri.WorldGrayCanvas) and explain what the addProviderTiles() function does. You may also want to check out the help ?addProviderTiles.
+
+```{r}
+leaflet(beer_location) |> setView(lng = -98.583, lat = 39.833, zoom = 4) |> addTiles() |> addProviderTiles(providers$Esri.WorldGrayCanvas)
+```
+
+-   addProviderTiles() specifies a specific map style to use.
+
+Exercise 2d. Run leaflet(beer_location) |> setView(lng = -98.583, lat = 39.833, zoom = 4) |> addTiles() |> addProviderTiles(providers$Esri.WorldGrayCanvas) |> addMarkers(lng = beer_location$Longitude, lat = beer_location$Latitude) and explain what the addMarkers() function does.
+
+```{r}
+leaflet(beer_location) |> setView(lng = -98.583, lat = 39.833, zoom = 4) |> addTiles() |> addProviderTiles(providers$Esri.WorldGrayCanvas) |> addMarkers(lng = beer_location$Longitude, lat = beer_location$Latitude)
+```
+
+-   addMarkers() allows you add markers to the map by specifying the latitude and longitude of the marker.
+
+Exercise 2e. Run the code in Exercise 2d, but add clusterOptions = markerClusterOptions() as an argument to addMarkers(). Explain what adding this argument does to the map.
+
+```{r}
+leaflet(beer_location) |> setView(lng = -98.583, lat = 39.833, zoom = 4) |> addTiles() |> addProviderTiles(providers$Esri.WorldGrayCanvas) |> addMarkers(lng = beer_location$Longitude, lat = beer_location$Latitude, clusterOptions = markerClusterOptions())
+```
+
+-   Adding this option clusters the markers numerically until they are clicked and the indivdual marker is exposed. 
+
+Exercise 2f. Finally, run the code in Exercise 2e but add popup = content$popup as an argument to addMarkers(). Explain what adding this argument does to the map.
+
+```{r}
+leaflet(beer_location) |> setView(lng = -98.583, lat = 39.833, zoom = 4) |> addTiles() |> addProviderTiles(providers$Esri.WorldGrayCanvas) |> addMarkers(lng = beer_location$Longitude, lat = beer_location$Latitude, clusterOptions = markerClusterOptions(), popup = content$popup)
+```
+
+-   Adding this argument allows us to add the data for each location to the marker.
+
+
+
+## 3/25/24
+## 13.2 `plotly` Introduction
+
+```{r}
+## install.packages("plotly")
+library(plotly)
+library(tidyverse)
+```
+
+```{r}
+hpi_df <- read_csv(here::here("data/hpi-tidy.csv"))
+ggplot(data = hpi_df, aes(x = Footprint, y = Wellbeing)) +
+  geom_point() +
+  theme_minimal()
+
+```
+
+```{r}
+plot1 <- ggplot(data = hpi_df, aes(x = Footprint, y = Wellbeing)) +
+  geom_point() +
+  theme_minimal()
+
+ggplotly(plot1)
+```
+
+
+```{r}
+plot1 <- ggplot(data = hpi_df, aes(x = Footprint, y = Wellbeing,
+                                   label = Country,
+                                   label2 = Region)) +
+  geom_point() +
+  theme_minimal()
+
+ggplotly(plot1, tooltip = c("x", "label", "label2"))
+```
+
+
+Exercise 1. Using the penguins data set from the palmerpenguins package, create a simple bar plot of species. Then, use ggplotly on the bar plot.
+
+```{r}
+library(palmerpenguins)
+
+penguin_bar <- 
+  penguins %>%
+  ggplot(aes(x = species)) +
+  geom_bar(stat = "count")
+
+ggplotly(penguin_bar)
+```
+
+
+Exercise 2. Use the ggplotly() function on the lollipop plot we made that showed the proportion of male (or female) students in particular majors. Then, modify the plot so that, when someone hovers over the point, the sample size is displayed.
+
+```{r}
+library(readxl)
+library(here)
+df <- read_excel(here::here("data/slu_graduates_17_23.xlsx"))
+
+df <- df |> mutate(across(everything(),
+                          .fns = ~replace(., . ==  "STATS" , "STAT")))
+
+summary_m_df <-
+  df %>%
+  # remove columns starting w/minor
+  select(-starts_with("minor")) %>%
+  pivot_longer(cols = starts_with("major"),
+               names_to = "major_num", 
+               values_drop_na = T,
+               values_to = "major") %>%
+  # Higham way:
+  group_by(major, sex) %>%
+  summarise(n_majors = n()) %>%
+  ungroup() %>%
+  
+  # My way:
+  # group_by(major) %>%
+  # summarise(prop_male = mean(sex == "M"))
+  
+  pivot_wider(names_from = sex,
+              values_from = "n_majors") %>%
+  mutate(prop_male = M / (`F` + M),
+         sample_size = M + `F`) %>%
+  filter(M + `F` >= 70) %>%
+  mutate(major = fct_reorder(major, prop_male), .desc = F#,
+         #math_stat_cs = ifelse((major == "MATH" | major == "STAT" | major == "CS"), "blue", "black")
+         # color_ind = case_when(prop_male < 0.50 ~ "pink", 
+         #                       prop_male > 0.50 ~ "lightblue",
+         #                       prop_male == 0.50 ~ "black")
+         )
+
+mcss_df <-
+  summary_m_df %>%
+  filter(major %in% c("STAT", "MATH", "CS"))
+
+  
+  
+majors_lollipop <-
+  ggplot(data = summary_m_df, aes(x = major, 
+                                  y = prop_male,
+                                  sample_size = sample_size)) +
+  geom_segment(aes(xend = major, y = 0, yend = prop_male)) +
+  geom_point() +
+  geom_segment(data = mcss_df, aes(xend = major, y = 0, yend = prop_male), colour = "hotpink1", linewidth = 2) +
+  geom_point(data = mcss_df, colour = "hotpink4", size = 2) +
+  coord_flip() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(size = 15)) +
+  labs(caption = "Data Source: SLU Institutional Research Office")
+
+ggplotly(majors_lollipop, tooltip = c("y", "sample_size"))
+```
+
+
+Exercise 3. You can also remove hover info for particular items with the style() function. In particular, specifying hoverinfo == "none" for particular traces removes the hover info for those traces. Modify one of the following examples so that hover info is only displayed for the points (and not for the smoother or the standard error bar for the smoother).
+
+```{r}
+plot_test <- ggplot(hpi_df, aes(x = Footprint, y = Wellbeing)) +
+  geom_point() +
+  geom_smooth()
+
+
+hover_ex1 <- ggplotly(plot_test) |>
+  style(hoverinfo = "none", traces = c(3))
+```
+
+```{r}
+
+ggplotly(plot_test) |>
+  style(hoverinfo = "none", traces = c(3)) ## remove hover info for se line
+```
+
+
+Exercise 4. Use the ggplotly() function on any plot of your choice that we’ve made so far in the course or any plot that you’ve made for your blog. For this exercise, really try to think about a plot that would benefit from becoming interactive.
+
+
+```{r}
+library(maps)
+world_df <- ggplot2::map_data("world")
+emissions <- read_csv("~/Documents/SLU_Senior_Year/SP24/DATA_334/ds334blog/data/CO2_Emissions_1960-2018.csv")
+
+emissions_longer <-
+  emissions %>%
+  rename("country" = `Country Name`) %>%
+  mutate(country = ifelse(country == "United States", "USA", country),
+         country = ifelse(country == "Russian Federation", "Russia", country),
+         country = ifelse(country == "Cote d'Ivoire", "Ivory Coast", country),
+         country = ifelse(country == "Congo, Dem. Rep.", "Democratic Republic of the Congo", country),
+         country = ifelse(country == "Egypt, Arab Rep.", "Egypt", country),
+         country = ifelse(country == "Venezuela, RB", "Venezuela", country),
+         country = ifelse(country == "Congo, Rep.", "Democratic Republic of the Congo", country),
+         country = ifelse(country == "Kyrgyz Republic", "Kyrgyzstan", country),
+         country = ifelse(country == "Lao PDR", "Laos", country),
+         
+         recent_percent_increase = ifelse(!is.na(`2000`) | `2000`!= 0, (`2018`-`2000`)/`2000`, NA),
+         recent_percent_increase = ifelse(recent_percent_increase == Inf, NA, recent_percent_increase)
+        ) %>%
+  pivot_longer(cols = 2:ncol(emissions), names_to = "year", values_to = "metric_tons_pcapita") 
+
+emission_lat_long <-
+  emissions_longer %>%
+  left_join(world_df, by = c("country" = "region"))
+
+# don't work?
+
+# world_map <-
+#   emission_lat_long %>%
+#   filter(year == "2018") %>%
+#   ggplot(aes(x = long,
+#              y = lat,
+#              group = group,
+#              text = paste("Country:", country,
+#                           "\nCO2 Emissions:", round(metric_tons_pcapita, 2), "metric tons per capita"))) +
+#   geom_polygon(aes(fill = metric_tons_pcapita)) +
+#   coord_map(projection = "mercator", xlim=c(-180,180)) +
+#   theme_void() +
+#   scale_fill_viridis_c(option = "plasma") +
+#   labs(title = "CO2 Emissions Per Capita by Country",
+#        fill = "Metric Tons\nper Capita") +
+#   theme(plot.title = element_text(hjust = 0.5))
+# 
+# ggplotly(world_map, tooltip = c("text"))
+
+```
+
+```{r}
+emissions_longer <-
+  emissions %>%
+  rename("country" = `Country Name`) %>%
+  mutate(country = ifelse(country == "United States", "USA", country),
+         country = ifelse(country == "Russian Federation", "Russia", country),
+         country = ifelse(country == "Cote d'Ivoire", "Ivory Coast", country),
+         country = ifelse(country == "Congo, Dem. Rep.", "Democratic Republic of the Congo", country),
+         country = ifelse(country == "Egypt, Arab Rep.", "Egypt", country),
+         country = ifelse(country == "Venezuela, RB", "Venezuela", country),
+         country = ifelse(country == "Congo, Rep.", "Democratic Republic of the Congo", country),
+         country = ifelse(country == "Kyrgyz Republic", "Kyrgyzstan", country),
+         country = ifelse(country == "Lao PDR", "Laos", country),
+         
+         recent_percent_increase = ifelse(!is.na(`2000`) | `2000`!= 0, (`2018`-`2000`)/`2000`, NA),
+         recent_percent_increase = ifelse(recent_percent_increase == Inf, NA, recent_percent_increase)
+        ) %>%
+  pivot_longer(cols = 2:ncol(emissions), names_to = "year", values_to = "metric_tons_pcapita") 
+
+
+emissions_plot <-
+  emissions_longer %>%
+  filter(year >= 2000) %>%
+  filter(country %in% largest_inc #| country %in% largest_dec
+         ) %>%
+  ggplot(aes(x = year,
+             y = metric_tons_pcapita,
+             group = country,
+             color = country)) +
+  geom_line() +
+  facet_wrap(~country) +
+  theme_minimal() +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 45, hjust = 1, size = 6),
+        plot.title = element_text(hjust = 0.5)) +
+  labs(title= "Countries with Largest Percent Increase in\nMetric Tons of CO2 Per Capital from 2000 to 2018",
+       y = "Metric Tons of CO2 Per Capita",
+       x = "Year",
+       color = "Country")
+
+ggplotly(emissions_plot)
+
+```
+
+
+## 13.3
+Exercise 1. What are some advantages of making a plot more interactive? What are some disadvantages of making a plot more interactive?
+
+Advantages:
+1. Can potentially see more information 
+2. More engaging for users
+
+Disadvantages:
+1. Can clutter plot without adding any additional information (distracting to main point you are trying to share)
+2. Harder to create/share
+3. __harder to convey a particular message__
+
+

@@ -1,0 +1,50 @@
+---
+title: "12  Ethics"
+author: "Ben Sunshine"
+format: 
+  html:
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+---
+
+## 3/5/24
+
+## 12.1
+Exercise 1. Pick 1 of the 3 examples (stand your ground, climate change, or covid cases), and summarize why that graphic is not ethical. Make sure to include the context that the graph was created in from Section 8.3 in your explanation.
+
+Read the short Section 8.5 of Modern Data Science with R, found here, stopping at Section 8.5.1.
+
+
+-   The graph of the number of murders committed using firearms published by the Florida Department of law enforcement is not an ethical graphic because it is intended to make people believe the number of murders following the implementation of the stand your ground law decreases, when really they increased. This was achieved by inverting the y axis (instead of starting at the origin with y = 0 the y axis started at 1000 and decreased as the higher up it goes). When the line graph decreases, it actually indicates the number of murders increased.
+
+
+
+Exercise 2. Choose 2 of the 12 principles of ethical practice of data science and come up a (possibly hypothetical) scenario where each of your two chosen principles would come into play.
+
+1. Protect the privacy and security of individuals represented in our data.
+-   When dealing with a data set of customer's credit information (credit card numbers, social security numbers, addresses, phone numbers, etc) is important to avoid sharing this data because it could lead to identity fraud.
+
+2. Recognize and mitigate bias in ourselves and in the data we use.
+-   For example if a news company was using polling data to inform viewers of the tightness of a presidential election, but they only used liberal or conservative leaning polls, it could misinform voters.
+
+
+
+Exercise 3. Which of the two visualizations better humanizes the victims of lynching? Why?
+
+-   Visual #2 is better because it doesn't summarize the lynchings, but rather include the person's name, date, location, reason, as well as sources. It also uses a better color scale and does not but as much of an emphasis on the south, but rather the whole US.
+
+Exercise 4. Suppose that you want to humanize the victims more in a static, non-interactive graph. Brainstorm ways that you could achieve this.
+
+-   Create a word cloud with the reasons each person was lynched. This shows the frequency of the occurrence of the top reasons.
+
+Exercise 5. A deeper discussion of these sites appears in this paper. Read the Introduction section on TayTweets and write 3 major takeaways from this section.
+
+1. The digital content we create is not exempted from cultural assumptions an predjudices that exist. 
+2. The goal of our visualizations should be to "increasing understanding [for users] while minimizing harm"
+3. All components like color, composition, line, symbols, type, and interactivity affect users’ understandings of information.
+
+
+Exercise 6. The authors of the book Data Feminism argue that “leveraging emotion” might help us better communicate with data. Read the first four paragraphs of Chapter 3 of the Data Feminism book. One example the authors use pertains to deaths from gun violence in the United States. Examine this animated chart. Explain how the chart uses emotion to convey the losses due to gun violence better than, for example, a statement that 11,356 people were killed from gun violence in 2018.
+
+-   This visualization evokes emotion by detailing the number of deaths and additionally the number of "stolen" years from the victims' lives. Seeing the sum of 502,025 stolen years makes the scale of life lost much more understandable than just stating the number of lives lost.
