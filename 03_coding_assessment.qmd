@@ -1,0 +1,84 @@
+---
+title: "Coding Assessment 3"
+author: "Ben Sunshine"
+format: 
+  html:
+    embed-resources: true
+---
+
+Question 1 (30 points). In the handwritten portion of the quiz, you were asked to make a sketch of a visualization you would make to interpret a model with lego price as the response and pieces (quantitative), theme (categorical with 3 levels: "City", "DUPLO®", "Friends"), age_5 (categorical with 2 levels: "no", "yes"), and the interaction between pieces and theme as predictors. Using the lego_df data set, construct the plot given below.
+
+```{r}
+library(tidyverse)
+library(broom)
+library(modelr)
+lego_df <- read_csv(here::here("data/lego_sample.csv")) |> 
+  mutate(age_5 = if_else(ages %in% c("Ages_6-12", "Ages_6+",
+                                     "Ages_7+", "Ages_8+"),
+                                  true = "no", false = "yes"))
+
+
+```
+```{r}
+library(broom)
+lm_price <- lm(price ~ pieces + theme + age_5 + pieces:theme, data = lego_df)
+
+grid <- lego_df |>
+  data_grid(
+    # trim() trims the ages at each tail by (0.1/2) * length(x)
+    pieces = seq_range(pieces, n = 4),
+    theme = c("City", "DUPLO®", "Friends"),
+    age_5 = c("no", "yes")
+  ) 
+
+aug <- augment(lm_price, newdata = grid, interval = "confidence")
+
+aug %>%
+  ggplot(aes(x = pieces,
+             y = .fitted,
+             color = theme)) +
+  geom_point(data = lego_df, aes(x = pieces, y = price), 
+             #alpha = 0.3
+             ) +
+  
+  geom_line(aes(color = as.factor(theme)), 
+            linewidth = 1.5) +
+  geom_ribbon(data = aug, aes(y = .fitted,
+                              ymin = .lower,
+                              ymax = .upper,
+                              fill = theme),
+              alpha = 0.2, color = NA) +
+  scale_color_viridis_d() +
+  scale_fill_viridis_d() +
+  facet_wrap(~ age_5) +
+  theme_minimal() +
+  labs(color = "theme",
+       x = "pieces",
+       y = "price")
+```
+
+
+
+Question 2 (2 points). For the model fit above (with pieces (quantitative), theme (categorical with 3 levels: "City", "DUPLO®", "Friends"), age_5 (categorical with 2 levels: "no", "yes"), and the interaction between pieces and theme as predictors), use tidy() to create a summary table of output of the model.
+
+
+```{r}
+lm_price %>% tidy()
+```
+
+
+Question 3 (2 points). For the model fit above, use glance() to obtain some basic model statistics.
+
+```{r}
+lm_price %>% glance()
+```
+
+Question 4 (6 points). For the model fit above, use augment() to create a data frame with fitted values, residuals, leverage, cook’s distance, etc. Then, use this data frame to construct a residual plot (a plot of the model residuals vs. the fitted values).
+
+```{r}
+augment(lm_price) %>%
+  ggplot(aes(x = .fitted, y = .resid)) +
+  geom_jitter(alpha = 0.7) +
+  theme_minimal()
+```
+

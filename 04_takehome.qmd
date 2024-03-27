@@ -1,0 +1,84 @@
+---
+title: "Take Home Assessment 4"
+author: "Ben Sunshine"
+format: 
+  html:
+    embed-resources: true
+---
+
+```{r}
+library(tidyverse)
+library(broom)
+library(modelr)
+
+heart_df <- read_csv(here::here("data/heart.csv")) |>
+  mutate(target = case_when(target == 1 ~ 0,
+                            target == 0 ~ 1)) ## flip coding of response
+heart_df
+```
+
+Question 1 (1 point). Fit a model with target as the response and age, sex, and chol as the predictors. Tidy the model; then, interpret the fitted regression coefficient for age in context of the problem.
+
+```{r}
+log_1 <- glm(target ~ age + sex + chol, data = heart_df)
+log_1 %>% tidy()
+```
+
+-   Holding sex and the cholesterol of the patient constant, the model predicts that on average the odds of having heart disease are the predicted odds of having heart disease of the previous year of age times 1.013 ($e^{0.0129727440}$).
+
+Question 2 (1 point). Fit a model with target as the response and age, sex, chol, the interaction between age and sex, the interaction between age and chol, and the interaction between sex and chol as predictors. Glance at the model from Question 1 and the model from this question. Which is the better model, according to the BIC criterion?
+
+```{r}
+log_2 <- glm(target ~ age + sex + chol + age:sex, data = heart_df)
+log_1 %>% glance()
+log_2 %>% glance()
+```
+
+
+-   Model 1 is better, because it has a lower BIC criterion.
+
+
+Question 3 (1 point). Sketch a visualization that helps interpret the fitted model from Question 1, using “predicted probability” of heart disease as the y-axis in your visualization. You do not need to turn anything in for this question, but it is suggested that you practice sketching for the handwritten quiz.
+
+
+Question 4 (5 points). Using the strategy outlined in class, construct a visualization that helps interpret the fitted model from Question 1, using “predicted probability” of heart disease as the y-axis in your visualization.
+
+```{r}
+grid_1 <-
+  heart_df %>%
+  mutate(sex = ifelse(sex == 1, "male", "female")) %>%
+    data_grid(
+    age = seq_range(age, n = 10),
+    sex = c(1, 0),
+    chol = seq_range(chol, n = 4)
+  ) 
+
+aug_mod1 <- augment(log_1, newdata = grid_1) %>%
+  mutate(pred_prob = exp(.fitted)/(1+exp(.fitted)))
+
+aug_mod1 %>%
+  mutate(sex = ifelse(sex == 1, "male", "female")) %>%
+  ggplot(aes(x = age, y = pred_prob)) +
+  geom_line(aes(color = as.factor(chol))) +
+  facet_wrap(~sex) +
+  labs(title = "Modeling Heart Disease Analysis",
+       color = "Cholesterol",
+       x = "Age",
+       y = "Predicted Probability of Heart Diease") +
+  theme_minimal()
+
+# aug_mod1 %>%
+#   ggplot(aes(x = age, y = pred_prob)) +
+#   geom_line(aes(color = as.factor(sex))) +
+#   facet_wrap(~chol)
+
+```
+
+
+Question 5 (1 point). We constructed the previous models and the previous plot with limited information about who the people are that make up the observations in this data set. Thinking more about the context of this data and about a “population” that these patients might represent, what else would you want to know about the people in this data set?
+
+-   Race or ethnicity may be another important variable in this model because it would allow us to asses whether previously known genetic dispositions for heart disease exist. Similarly, another variable of interest could be home country of a patient, because it may capture the lifestyle and behavioral differences between patients from other countries.
+
+Question 6 (1 point). Suppose that we have a different data set on heart disease, with a quantitative measurement of “blockage” as the response variable. We give a particular treatment to a subset of patients in the study and measure the “blockage” before treatment and gain 6 weeks after treatment. Why is making a set of side-by-side boxplots with “pre vs. post” treatment on the x-axis and “blockage” on the y-axis not the best visual for this hypothetical data set?
+
+-   Box plots would summarize the before and after blockage levels, but it would leave out the information in regard to the change in blockage levels of individual patients before and after the study for the respective groups. Leaving out the information about the individuals leaves the box plots prone to potential misinterpretation. 

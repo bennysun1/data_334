@@ -1,0 +1,393 @@
+---
+title: "09 Linear Model Visualization"
+author: "Ben Sunshine"
+format: 
+  html:
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+---
+
+
+## 2/20/24
+## 9.1
+
+```{r}
+library(openintro)
+library(tidyverse)
+theme_set(theme_minimal())
+evals <- openintro::evals
+```
+
+```{r}
+ggplot(data = evals, aes(x = age, y = score)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
+```{r}
+library(broom)
+mod_age <- lm(score ~ age, data = evals) 
+mod_age |> tidy()
+#> # A tibble: 2 × 5
+#>   term        estimate std.error statistic   p.value
+#>   <chr>          <dbl>     <dbl>     <dbl>     <dbl>
+#> 1 (Intercept)  4.46      0.127       35.2  1.05e-132
+#> 2 age         -0.00594   0.00257     -2.31 2.13e-  2
+```
+
+```{r}
+library(modelr)
+grid <- evals |>
+  data_grid(
+    age = seq_range(age, n = 6)
+  ) 
+grid
+#> # A tibble: 6 × 1
+#>     age
+#>   <dbl>
+#> 1  29  
+#> 2  37.8
+#> 3  46.6
+#> 4  55.4
+#> 5  64.2
+#> 6  73
+```
+
+```{r}
+aug_age <- augment(mod_age, newdata = grid,
+                   interval = "confidence")
+aug_age
+#> # A tibble: 6 × 4
+#>     age .fitted .lower .upper
+#>   <dbl>   <dbl>  <dbl>  <dbl>
+#> 1  29      4.29   4.18   4.40
+#> 2  37.8    4.24   4.16   4.31
+#> 3  46.6    4.19   4.13   4.24
+#> 4  55.4    4.13   4.07   4.19
+#> 5  64.2    4.08   3.99   4.17
+#> 6  73      4.03   3.89   4.16
+```
+
+```{r}
+ggplot(data = evals, aes(x = age, y = score)) +
+  geom_point() +
+  geom_line(data = aug_age, aes(x = age, y = .fitted),
+            colour = "blue", linewidth = 1.2)
+```
+
+```{r}
+ggplot(data = evals, aes(x = age, y = score)) +
+  geom_point() +
+  geom_line(data = aug_age, aes(x = age, y = .fitted),
+            colour = "blue", linewidth = 1.2) +
+  geom_ribbon(data = aug_age, aes(y = .fitted,
+                                  ymin = .lower,
+                                  ymax = .upper), 
+              alpha = 0.4)
+```
+
+
+
+Exercise 1. As we saw above, the grey “band” around the fitted regression line represents 95% confidence intervals for the mean response (score) for particular values of the predictor (age). In STAT 213, you also discussed 95% prediction intervals for a new observation’s response (score) for particular values of the predictor (age). What is the difference between a 95% confidence interval and a 95% prediction interval?
+
+-   A 95% confidence interval represents a range a statistic (e.g. mean, proportion, etc) will fall between with 95% confidence. A 95% prediction interval represents a range we are 95% confident a single observation will fall between.
+
+Exercise 2. Modify the code so that the grey band reflects 95% prediction intervals instead of 95% confidence intervals for the mean.
+
+
+```{r}
+aug_pred_age <- augment(mod_age, 
+                        newdata = grid,
+                        interval = "prediction")
+
+ggplot(data = evals, aes(x = age, y = score)) +
+  geom_point() +
+  geom_line(data = aug_pred_age, aes(x = age, y = .fitted),
+            colour = "blue", linewidth = 1.2) +
+  geom_ribbon(data = aug_age, aes(y = .fitted,
+                                  ymin = .lower,
+                                  ymax = .upper), 
+              alpha = 0.4)
+```
+
+
+Exercise 3. By “hand”, verify that the .fitted value in the first row of aug_age can be calculated simply by plugging in 29 into the fitted regression equation obtained from mod_age.
+
+
+```{r}
+by_hand_check <- 4.461932 - (0.005938*29)
+
+aug_age %>%
+  filter(age == 29) %>%
+  select(.fitted) %>%
+  pull()
+
+by_hand_check
+```
+
+
+
+Exercise 4. In data_grid(age = seq_range(age, n = 6)), why does it not matter as much what value is chosen for n in this example? Change n to be a different integer and verify that the plot does not substantially change.
+
+
+```{r}
+grid_15 <- evals |>
+  data_grid(
+    age = seq_range(age, n = 15)
+  ) 
+
+aug_age_15 <- augment(mod_age, newdata = grid_15,
+                     interval = "confidence")
+
+ggplot(data = evals, aes(x = age, y = score)) +
+  geom_point() +
+  geom_line(data = aug_age_15, aes(x = age, y = .fitted),
+            colour = "blue", linewidth = 1.2) +
+  geom_ribbon(data = aug_age, aes(y = .fitted,
+                                  ymin = .lower,
+                                  ymax = .upper), 
+              alpha = 0.4)
+```
+
+
+
+-   It does not matter because increasing 'n' just increases the number of points to plug into the model.
+
+Exercise 5. Fit the following model, which includes an age^2 term. Then, run the rest of the code in the chunk to obtain predictions for the age values in grid with both the mod_age model and the mod_agesq model.
+
+
+
+```{r}
+aug_age <- augment(mod_age, newdata = grid,
+                   interval = "confidence")
+
+mod_agesq <- lm(score ~ age + I(age ^ 2), data = evals) 
+
+grid <- evals |>
+  data_grid(
+    age = seq_range(age, n = 6)
+  ) 
+
+aug_agesq <- augment(mod_agesq, newdata = grid,
+                     interval = "confidence")
+aug_agesq
+#> # A tibble: 6 × 4
+#>     age .fitted .lower .upper
+#>   <dbl>   <dbl>  <dbl>  <dbl>
+#> 1  29      4.29   4.12   4.47
+#> 2  37.8    4.24   4.16   4.31
+#> 3  46.6    4.18   4.12   4.25
+#> 4  55.4    4.13   4.07   4.20
+#> 5  64.2    4.08   3.97   4.20
+#> 6  73      4.03   3.76   4.30
+```
+
+
+Use ggplot to make a plot that has (1) the fitted line from mod_age and the fitted curve from mod_agesq, where the line/curves are coloured by the model type and (2) has the data points in the background of the plot. The code below stacks the two augmented data frames on top of each other and creates a new column called model that gives the names of the data frames as its levels.
+
+
+
+```{r}
+plot_df <- bind_rows(lst(aug_age, aug_agesq), .id = "model")
+plot_df
+#> # A tibble: 12 × 5
+#>   model     age .fitted .lower .upper
+#>   <chr>   <dbl>   <dbl>  <dbl>  <dbl>
+#> 1 aug_age  29      4.29   4.18   4.40
+#> 2 aug_age  37.8    4.24   4.16   4.31
+#> 3 aug_age  46.6    4.19   4.13   4.24
+#> 4 aug_age  55.4    4.13   4.07   4.19
+#> 5 aug_age  64.2    4.08   3.99   4.17
+#> 6 aug_age  73      4.03   3.89   4.16
+#> # ℹ 6 more rows
+```
+
+```{r}
+ggplot(data = evals,
+       aes(x = age,
+           y = score)) +
+  geom_point() +
+  geom_line(data = plot_df, 
+            aes(x = age, 
+                y = .fitted,
+                group = model,
+                colour = model),
+            linewidth = 1.2) +
+  geom_ribbon(data = plot_df, 
+              aes(y = .fitted,
+                  ymin = .lower,
+                  ymax = .upper,
+                  group = model),
+              alpha = 0.4)
+  
+```
+
+
+
+## 2/21/24
+
+## 9.2
+
+
+
+```{r}
+library(broom)
+mod_comp <- lm(score ~ age + bty_avg + age:bty_avg + gender,
+               data = evals)
+mod_comp |> tidy()
+#> # A tibble: 5 × 5
+#>   term        estimate std.error statistic  p.value
+#>   <chr>          <dbl>     <dbl>     <dbl>    <dbl>
+#> 1 (Intercept)  5.24      0.362       14.5  2.08e-39
+#> 2 age         -0.0308    0.00730     -4.22 2.91e- 5
+#> 3 bty_avg     -0.204     0.0745      -2.74 6.48e- 3
+#> 4 gendermale   0.213     0.0512       4.16 3.75e- 5
+#> 5 age:bty_avg  0.00574   0.00156      3.69 2.53e- 4
+```
+
+```{r}
+grid <- evals |>
+  data_grid(
+    # trim() trims the ages at each tail by (0.1/2) * length(x)
+    age = seq_range(age, n = 6, trim = 0.1),
+    bty_avg = seq_range(bty_avg, n = 6),
+    gender = c("female", "male")
+  ) 
+```
+
+```{r}
+aug_int <- augment(mod_comp, newdata = grid,
+                   interval = "confidence")
+aug_int
+```
+
+
+
+Exercise 1. By hand, sketch a plot that shows the predictions from the mod_comp model in a meaningful way.
+
+
+```{r}
+aug_int %>%
+  ggplot(aes(x = age,
+             y = .fitted,
+             group = bty_avg)) +
+  geom_point(data = evals, aes(x = age,
+                               y = score,
+                               group = bty_avg), 
+             alpha = 0.3) +
+  geom_line(aes(color = as.factor(bty_avg)), 
+            linewidth = 1.5) +
+  # geom_ribbon(data = aug_int, aes(y = .fitted,
+  #                                 ymin = .lower,
+  #                                 ymax = .upper,
+  #                                 fill = as.factor(bty_avg)),
+  #             alpha = 0.3) +
+  scale_color_viridis_d() +
+  scale_fill_viridis_d() +
+  facet_wrap(~ gender) +
+  theme_minimal() +
+  labs(color = "Beatuty Average",
+       x = "Age",
+       y = "Predicted Score")
+```
+
+
+
+
+
+## 9.3
+
+Exercise 1. Fit a model of your choice with two categorical predictors, one quantitative predictor, and an interaction between the quantitative predictor and one of the categorical predictors. Construct a plot that helps interpret the coefficients from the fitted model. You do not need to show confidence bands on your plot. You should make a sketch of the plot you intend to create first!
+
+
+```{r}
+mod_comp_new <- lm(score ~ age + gender + age:gender + ethnicity,
+                   data = evals)
+
+grid_new <- evals |>
+  data_grid(
+    # trim() trims the ages at each tail by (0.1/2) * length(x)
+    age = seq_range(age, n = 6, trim = 0.1),
+    bty_avg = seq_range(bty_avg, n = 6),
+    gender = c("female", "male"),
+    ethnicity = evals %>% pull(ethnicity) %>% levels()
+    # above give you this: c("minority", "not minority")
+  ) 
+
+aug_int_new <- augment(mod_comp_new, newdata = grid_new,
+                   interval = "confidence")
+
+aug_int_new %>%
+  ggplot(aes(x = age,
+             y = .fitted,
+             group = gender)) +
+  geom_point(data = evals, aes(x = age,
+                               y = score), 
+             alpha = 0.3) +
+  geom_line(aes(color = as.factor(gender)), 
+            linewidth = 1.5) +
+  # geom_ribbon(data = aug_int, aes(y = .fitted,
+  #                                 ymin = .lower,
+  #                                 ymax = .upper,
+  #                                 fill = as.factor(bty_avg)),
+  #             alpha = 0.3) +
+  scale_color_viridis_d() +
+  scale_fill_viridis_d() +
+  facet_wrap(~ ethnicity) +
+  theme_minimal() +
+  labs(color = "Gender",
+       x = "Age",
+       y = "Predicted Score")
+```
+
+
+
+Exercise 2. Modify the model from the previous exercise by getting rid of the interaction term. Using the workflow we have been using, construct a plot that compares the model with the interaction and the model without the interaction. Again, it might be helpful to sketch the plot first.
+
+
+```{r}
+mod_comp_no_int <- lm(score ~ age + gender + ethnicity,
+                      data = evals)
+
+grid_new <- evals |>
+  data_grid(
+    # trim() trims the ages at each tail by (0.1/2) * length(x)
+    age = seq_range(age, n = 6, trim = 0.1),
+    gender = c("female", "male"),
+    ethnicity = evals %>% pull(ethnicity) %>% levels()
+    # above give you this: c("minority", "not minority")
+  ) 
+
+aug_int_new <- augment(mod_comp_new, newdata = grid_new,
+                   interval = "confidence")
+
+aug_no_int <- augment(mod_comp_no_int, newdata = grid_new,
+                   interval = "confidence")
+
+plot_df_new <- bind_rows(list(aug_int_new, aug_no_int), .id = "model")
+plot_df_new
+
+plot_df_new %>%
+  ggplot(aes(x = age,
+             y = .fitted)) +
+  geom_point(data = evals, aes(x = age,
+                               y = score), 
+             alpha = 0.3) +
+  geom_line(aes(color = as.factor(model)), 
+            linewidth = 1.5) +
+  scale_color_viridis_d() +
+  facet_grid(gender ~ ethnicity) +
+  theme_minimal() +
+  labs(color = "Model",
+       x = "Age",
+       y = "Predicted Score")
+```
+
+
+Exercise 3. Suppose that you want to visualize a regression model with a generic quantitative response variable 
+y and 10 predictor variables x1,x2,x3,...,x10. You are most interested in the visualizing the association between 
+and x4 and y after accounting for the effects of the other 9 predictors. Sketch an appropriate visualization for this setting. What should the values for the other 9 predictors be?
+
+-   There is not perfect solution to this. But, one idea is to plug in the median values of x1, x2, x3, x5, x6, x7, x8, x9, x10 and create a grid with different values of x4.
+
